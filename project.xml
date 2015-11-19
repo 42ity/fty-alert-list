@@ -1,0 +1,22 @@
+<project
+    name = "alert-list"
+    description = "Provides information about active and resolved alerts"
+    script = "zproject.gsl"
+    email = "bios@eaton.com"
+    url = "https://eaton.com/"
+    license = "GPL-2.0+"
+    >
+    <include filename = "license.xml" />
+    <version major = "0" minor = "1" patch = "0" />
+    <use project = "malamute" />
+
+    <use project = "biosproto" libname = "libbiosproto" prefix="biosproto"
+        min_major = "0" min_minor = "0" min_patch = "0"
+        repository = "https://stash.mbt.lab.etn.com/BIOS/libbiosproto"
+        test = "bios_proto_test">
+        <use project = "malamute"/>
+    </use>
+
+    <class name = "bios_alerts_list_server">Providing information about active and resolved alerts</class>
+
+</project>
