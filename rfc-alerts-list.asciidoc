@@ -19,8 +19,11 @@ peer using MAILBOX SEND.
 * LIST/state/alert_1[/alert_2]...[/alert_N]
 * ERROR/reason
 
-where '/' indicates a multipart frame message, 'state' is string and value MUST
-be repeated from request, 'reason' is string detailing reason for error, 
-'alert_X' is an encoded ALERT message (from libbiosproto) representing alert of
-requested state and subject of the message MUST be "rfc-alerts-list".
+where
+ * '/' indicates a multipart frame message
+ * 'state' is string and value MUST be repeated from request
+ * 'reason' is string detailing reason for error. If requested 'state' does not
+    exist, the ALERT-LIST-PROVIDER peer MUST assign NOT_FOUND string as reason.
+ * 'alert_X' is an encoded ALERT message (from libbiosproto) representing alert
+    of requested state and subject of the message MUST be "rfc-alerts-list".
 
