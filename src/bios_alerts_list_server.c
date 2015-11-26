@@ -135,33 +135,35 @@ s_send_error_response (mlm_client_t *client, const char *reason) {
 } 
 
 static void
-s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts) {
-    assert (msg_p);
+s_handle_rfc_alerts_list (mlm_client_t *client, zmsg_t **msg_p, zlistx_t *alerts) {
+    assert (client);
+    assert (msg_p && *msg_p);
+    assert (alerts);
+
     zmsg_t *msg = *msg_p;
-    if (!msg)
-        return;
-    char *part = zmsg_popstr (msg);
-    if (!part || !streq (part, "LIST")) {
-        free (part); part = NULL;
+    char *command = zmsg_popstr (msg);
+    if (!command || !streq (command, "LIST")) {
+        free (command); command = NULL;
         zmsg_destroy (&msg);
         s_send_error_response (client, "BAD_MESSAGE");
         return;
     }
-    free (part); part = NULL;
-    part = zmsg_popstr (msg);
-    zmsg_destroy (&msg);
-    if (!is_alertstate (part)) {
-        free (part); part = NULL;
+    free (command); command = NULL;
+
+    char *state = zmsg_popstr (msg);
+    zmsg_destroy (msg_p);   
+    if (!state || !is_alertstate (state)) {
+        free (state); state = NULL;
         s_send_error_response (client, "NOT_FOUND");
         return;
     } 
-
+    
     zmsg_t *reply = zmsg_new ();
     zmsg_addstr (reply, "LIST");
-    zmsg_addstr (reply, part);
+    zmsg_addstr (reply, state);
     bios_proto_t *cursor = (bios_proto_t *) zlistx_first (alerts);
     while (cursor) {
-        if (streq (part, "ALL") || streq (part, bios_proto_state (cursor))) {
+        if (streq (state, "ALL") || streq (state, bios_proto_state (cursor))) {
             byte *buffer = NULL;
             bios_proto_t *duplicate = bios_proto_dup (cursor);
             zmsg_t *result = bios_proto_encode (&duplicate);
@@ -177,7 +179,22 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts
         zsys_error ("mlm_client_sendto (sender = '%s', subject = '%s', timeout = '5000') failed.",
                 mlm_client_sender (client), RFC_ALERTS_LIST_SUBJECT);
     }
-    free (part); part = NULL;
+    free (state); state = NULL;
+}
+
+static void
+s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts) {
+    assert (client);
+    assert (msg_p && *msg_p);
+    assert (alerts);
+
+    if (streq (mlm_client_subject (client), RFC_ALERTS_LIST_SUBJECT)) {
+        s_handle_rfc_alerts_list (client, msg_p, alerts);
+    }
+    else {
+        zsys_warning ("Unknown protocol. Subject: '%s', Sender: '%s'.",
+            mlm_client_subject (client), mlm_client_sender (client));
+    }
 }
 
 void
