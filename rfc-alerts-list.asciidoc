@@ -6,24 +6,41 @@ Connects USER peer to ALERTS-LIST-PROVIDER peer.
 The USER peer sends one of the following messages using MAILBOX SEND to
 ALERT-LIST-PROVIDER peer:
 
-* LIST/state - request list of alerts of specified 'state'
+* LIST/state/asset/recursive - request list of alerts of specified 'state',
+belonging to specified 'asset' or, if 'recursive' is RECURSIVE, all assets
+topologically under specified 'asset' identifier
 
-where '/' indicates a multipart string message, 'state' MUST be one of [ ALL |
-ACTIVE | ACK-WIP | ACK-IGNORE | ACK-PAUSE | ACK-SILENCE ] and subject
-of the message MUST be "rfc-alerts-list".
+where
+ * '/' indicates a multipart string message
+ * 'state' MUST be one of [ ALL | ACTIVE | ACK-WIP | ACK-IGNORE | ACK-PAUSE |
+ACK-SILENCE ]
+ * 'asset' is asset identifier or ALL for all assets
+ * 'recursive' MUST be one of [ RECURSIVE | NONRECURSIVE ]
+ * subject of the message MUST be "rfc-alerts-list"
 
 
 The ALERT-LIST-PROVIDER peer MUST respond with one of the messages back to USER
-peer using MAILBOX SEND.
+peer using MAILBOX SEND:
 
-* LIST/state/alert_1[/alert_2]...[/alert_N]
+* LIST/state/asset/recursive/alert_1[/alert_2]...[/alert_N]
 * ERROR/reason
 
 where
  * '/' indicates a multipart frame message
- * 'state' is string and value MUST be repeated from request
- * 'reason' is string detailing reason for error. If requested 'state' does not
-    exist, the ALERT-LIST-PROVIDER peer MUST assign NOT_FOUND string as reason.
+ * 'state', 'asset', 'recursive' are strings and their values MUST be repeated
+from request message
  * 'alert_X' is an encoded ALERT message (from libbiosproto) representing alert
-    of requested state and subject of the message MUST be "rfc-alerts-list".
+of requested state and subject of the message MUST be "rfc-alerts-list".
+ * 'reason' is string detailing reason for error:
+ ** If requested 'state' does not exist, the ALERT-LIST-PROVIDER peer MUST
+assign STATE_NOT_FOUND string as reason.
+ ** If requested 'asset' does not exist, the ALERT-LIST-PROVIDER peer MUST
+assign ASSET_NOT_FOUND string as reason.
+ ** If 'recursive' string is not one of [ RECURSIVE | NONRECURSIVE ],
+the ALERT-LIST-PROVIDER peer MUST assign RECURSIVE_BAD_VALUE string as reason.
 
+
+TODO (improvement)
+ * Make 'reason' states in form - string STATE_NOT_FOUND:<state> etc... ASSET_NOT_FOUND:<asset>
+OR maybe BAD_PARAM:<state>.... BAD_PARAM:<asset>
+ 
