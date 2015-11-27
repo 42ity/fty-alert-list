@@ -1,6 +1,6 @@
 <project
-    name = "alert-list"
-    description = "Provides information about active and resolved alerts"
+    name = "alerts_list"
+    description = "Provides information about active alerts."
     script = "zproject.gsl"
     email = "bios@eaton.com"
     url = "https://eaton.com/"
@@ -17,6 +17,5 @@
         <use project = "malamute"/>
     </use>
 
-    <class name = "bios_alerts_list_server">Providing information about active and resolved alerts</class>
-
+    <class name = "bios_alerts_list_server">Providing information about active alerts</class>
 </project>
