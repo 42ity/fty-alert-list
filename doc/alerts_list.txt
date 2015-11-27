@@ -1,0 +1,25 @@
+Name(7)
+=======
+
+
+NAME
+----
+alerts_list - Provides information about active alerts.
+
+
+SYNOPSIS
+--------
+----
+#include <alerts_list.h>
+
+cc ['flags'] 'files' -lalerts_list ['libraries']
+----
+
+
+DESCRIPTION
+-----------
+
+Classes
+~~~~~~~
+
+Something.

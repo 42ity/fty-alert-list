@@ -1,0 +1,208 @@
+bios_alerts_list_server(3)
+==========================
+
+NAME
+----
+bios_alerts_list_server - Providing information about active and resolved alerts
+
+SYNOPSIS
+--------
+----
+//  Create a new bios_alerts_list_server
+ALERTS_LIST_EXPORT bios_alerts_list_server_t *
+    bios_alerts_list_server_new (void);
+
+//  Destroy the bios_alerts_list_server
+ALERTS_LIST_EXPORT void
+    bios_alerts_list_server_destroy (bios_alerts_list_server_t **self_p);
+
+//  Print properties of object
+ALERTS_LIST_EXPORT void
+    bios_alerts_list_server_print (bios_alerts_list_server_t *self);
+
+//  Self test of this class
+ALERTS_LIST_EXPORT void
+    bios_alerts_list_server_test (bool verbose);
+----
+
+DESCRIPTION
+-----------
+
+bios_alerts_list_server - Providing information about active and resolved alerts
+
+Please add @discuss section in ../src/bios_alerts_list_server.c.
+
+EXAMPLE
+-------
+.From bios_alerts_list_server_test method
+----
+//  Simple create/destroy test
+
+// maintain a list of active alerts (that serves as "expected results")
+zlistx_t *alerts = zlistx_new ();
+zlistx_set_destructor (alerts, (czmq_destructor *) bios_proto_destroy);
+zlistx_set_duplicator (alerts, (czmq_duplicator *) bios_proto_dup);
+zlistx_set_comparator (alerts, (czmq_comparator *) alert_id_comparator);
+
+zmsg_t *reply = test_request_alerts_list (ui_client, "ALL");
+assert (reply);
+test_check_result ("ALL", alerts, &reply, 0);
+
+reply = test_request_alerts_list (ui_client, "ACK-WIP");
+test_check_result ("ACK-WIP", alerts, &reply, 0);
+
+reply = test_request_alerts_list (ui_client, "ACK-IGNORE");
+test_check_result ("ACK-IGNORE", alerts, &reply, 0);
+
+// add new alert
+bios_proto_t *alert = test_alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
+test_check_result ("ACK-PAUSE", alerts, &reply, 0);
+
+// add new alert
+alert = test_alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 2, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+// add new alert
+alert = test_alert_new ("SimpleRule", "ups", "ACTIVE", "high", "description", 3, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+// add new alert
+alert = test_alert_new ("SimpleRule", "karolkovo", "ACTIVE", "high", "description", 4, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+reply = test_request_alerts_list (ui_client, "ACTIVE");
+test_check_result ("ACTIVE", alerts, &reply, 0);
+
+// change state 
+alert = test_alert_new ("Threshold", "epdu", "ACK-WIP", "high", "description", 5, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+// change state back
+alert = test_alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 6, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+// change state of two alerts
+alert = test_alert_new ("Threshold", "ups", "ACK-PAUSE", "high", "description", 7, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+alert = test_alert_new ("SimpleRule", "ups", "ACK-PAUSE", "high", "description", 8, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
+test_check_result ("ACK-PAUSE", alerts, &reply, 0);
+
+alert = test_alert_new ("SimpleRule", "ups", "ACK-WIP", "high", "description", 9, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+ 
+reply = test_request_alerts_list (ui_client, "ACK-WIP");
+test_check_result ("ACK-WIP", alerts, &reply, 0);
+
+// resolve alert
+alert = test_alert_new ("SimpleRule", "karolkovo", "RESOLVED", "high", "description", 10, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 0);
+
+// Now, let's publish an alert as-a-byspass (i.e. we don't add it to expected)
+// and expect a failure (i.e. expected list != received list)
+zmsg_t *alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACTIVE", "high", "description", 11, "EMAIL|SMS");
+mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
+zclock_sleep (500);
+
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 1);
+
+reply = test_request_alerts_list (ui_client, "ACTIVE");
+test_check_result ("ACTIVE", alerts, &reply, 1);
+
+alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACK-WIP", "high", "description", 12, "EMAIL|SMS");
+mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
+zclock_sleep (500);
+
+reply = test_request_alerts_list (ui_client, "ALL");
+test_check_result ("ALL", alerts, &reply, 1);
+
+reply = test_request_alerts_list (ui_client, "ACK-WIP");
+test_check_result ("ACK-WIP", alerts, &reply, 1);
+
+// when requesting a different type, it should be ok though
+alert = test_alert_new ("BlackBooks", "store", "ACK-PAUSE", "high", "description", 13, "EMAIL|SMS");
+test_alert_publish (ap_client, alerts, &alert);
+
+reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
+test_check_result ("ACK-PAUSE", alerts, &reply, 0);
+
+// Now, let's test an error response
+zmsg_t *send = zmsg_new ();
+zmsg_addstr (send, "LIST");
+zmsg_addstr (send, "RESOLVED");
+int rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
+assert (rv == 0);
+reply = mlm_client_recv (ui_client);
+assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+char *part = zmsg_popstr (reply);
+assert (streq (part, "ERROR"));
+free (part); part = NULL;
+part = zmsg_popstr (reply);
+assert (streq (part, "NOT_FOUND"));
+free (part); part = NULL;
+
+send = zmsg_new ();
+zmsg_addstr (send, "LIST");
+zmsg_addstr (send, "Karolino");
+rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
+assert (rv == 0);
+reply = mlm_client_recv (ui_client);
+assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+part = zmsg_popstr (reply);
+assert (streq (part, "ERROR"));
+free (part); part = NULL;
+part = zmsg_popstr (reply);
+assert (streq (part, "NOT_FOUND"));
+free (part); part = NULL;
+
+send = zmsg_new ();
+zmsg_addstr (send, "Hatatitla");
+zmsg_addstr (send, "Karolino");
+rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
+assert (rv == 0);
+reply = mlm_client_recv (ui_client);
+assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+part = zmsg_popstr (reply);
+assert (streq (part, "ERROR"));
+free (part); part = NULL;
+part = zmsg_popstr (reply);
+assert (part);
+free (part); part = NULL;
+
+mlm_client_destroy (&ui_client);
+mlm_client_destroy (&ap_client);
+   
+zactor_destroy (&bios_al_server);
+zactor_destroy (&server);
+printf ("OK\n");
+}
+
+----
