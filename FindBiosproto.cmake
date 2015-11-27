@@ -5,7 +5,7 @@
 
 if (NOT MSVC)
   include(FindPkgConfig)
-  pkg_check_modules(PC_BIOSPROTO "libbiosproto")
+  pkg_check_modules(PC_BIOSPROTO "biosproto")
   if (NOT PC_BIOSPROTO_FOUND)
     pkg_check_modules(PC_BIOSPROTO "biosproto")
   endif(NOT PC_BIOSPROTO_FOUND)

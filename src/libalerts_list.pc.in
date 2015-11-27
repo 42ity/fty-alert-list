@@ -12,7 +12,7 @@ Name: libalerts_list
 Description: Provides information about active alerts.
 Version: @VERSION@
 
-Requires:libzmq >= 4.2.0 libczmq >= 3.0.1 libmlm libbiosproto
+Requires:libzmq >= 4.2.0 libczmq >= 3.0.1 libmlm biosproto
 
 Libs: -L${libdir} -lalerts_list
 Cflags: -I${includedir}

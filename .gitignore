@@ -19,8 +19,12 @@
 *.lo
 
 # Executables
+<<<<<<< HEAD
 alerts_list_selftest
 bios_alerts_list_server
+=======
+alert-list_selftest
+>>>>>>> 1994c5c84b463bc914687d7a6e80b19d98158429
 *.exe
 *.out
 *.app

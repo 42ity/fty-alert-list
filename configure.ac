@@ -150,31 +150,31 @@ fi
 
 was_biosproto_check_lib_detected=no
 
-PKG_CHECK_MODULES([biosproto], [libbiosproto >= 0.0.0],
+PKG_CHECK_MODULES([biosproto], [biosproto >= 0.0.0],
     [
     ],
     [
-        AC_ARG_WITH([libbiosproto],
+        AC_ARG_WITH([biosproto],
             [
-                AS_HELP_STRING([--with-libbiosproto],
-                [Specify libbiosproto prefix])
+                AS_HELP_STRING([--with-biosproto],
+                [Specify biosproto prefix])
             ],
-            [search_libbiosproto="yes"],
+            [search_biosproto="yes"],
             [])
 
         biosproto_synthetic_cflags=""
         biosproto_synthetic_libs="-lbiosproto"
 
-        if test "x$search_libbiosproto" = "xyes"; then
-            if test -r "${with_libbiosproto}/include/biosproto.h"; then
-                biosproto_synthetic_cflags="-I${with_libbiosproto}/include"
-                biosproto_synthetic_libs="-L${with_libbiosproto}/lib -lbiosproto"
+        if test "x$search_biosproto" = "xyes"; then
+            if test -r "${with_biosproto}/include/biosproto.h"; then
+                biosproto_synthetic_cflags="-I${with_biosproto}/include"
+                biosproto_synthetic_libs="-L${with_biosproto}/lib -lbiosproto"
             else
-                AC_MSG_ERROR([${with_libbiosproto}/include/biosproto.h not found. Please check libbiosproto prefix])
+                AC_MSG_ERROR([${with_biosproto}/include/biosproto.h not found. Please check biosproto prefix])
             fi
         fi
 
-        AC_CHECK_LIB([libbiosproto], [bios_proto_test],
+        AC_CHECK_LIB([biosproto], [bios_proto_test],
             [
                 CFLAGS="${biosproto_synthetic_cflags} ${CFLAGS}"
                 LDFLAGS="${biosproto_synthetic_libs} ${LDFLAGS}"
@@ -184,7 +184,7 @@ PKG_CHECK_MODULES([biosproto], [libbiosproto >= 0.0.0],
                 AC_SUBST([biosproto_LIBS],[${biosproto_synthetic_libs}])
                 was_biosproto_check_lib_detected=yes
             ],
-            [AC_MSG_ERROR([cannot link with -lbiosproto, install libbiosproto.])])
+            [AC_MSG_ERROR([cannot link with -lbiosproto, install biosproto.])])
     ])
 
 if test "x$was_biosproto_check_lib_detected" = "xno"; then
