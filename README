@@ -1,5 +1,5 @@
 To build alets-list project run:
-./generate.sh
+sh ./generate.sh
 ./autogen.sh
 ./configure
 make

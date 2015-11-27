@@ -1,5 +1,5 @@
 #
-#    alerts-list - Provides information about active alerts.
+#    alerts_list - Provides information about active alerts.
 #
 #    Copyright (C) 2014 - 2015 Eaton                                        
 #                                                                           
@@ -18,7 +18,7 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
 #
 
-Name:           alerts-list
+Name:           alerts_list
 Version:        0.1.0
 Release:        1
 Summary:        provides information about active alerts.
@@ -37,14 +37,14 @@ BuildRequires:  biosproto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
-alerts-list provides information about active alerts..
+alerts_list provides information about active alerts..
 
 %package -n libalerts_list0
 Group:          System/Libraries
 Summary:        provides information about active alerts.
 
 %description -n libalerts_list0
-alerts-list provides information about active alerts..
+alerts_list provides information about active alerts..
 This package contains shared library.
 
 %post -n libalerts_list0 -p /sbin/ldconfig
@@ -65,14 +65,14 @@ Requires:       malamute-devel
 Requires:       biosproto-devel
 
 %description devel
-alerts-list provides information about active alerts..
+alerts_list provides information about active alerts..
 This package contains development files.
 
 %files devel
 %defattr(-,root,root)
 %{_includedir}/*
 %{_libdir}/libalerts_list.so
-%{_libdir}/pkgconfig/alerts-list.pc
+%{_libdir}/pkgconfig/alerts_list.pc
 
 %prep
 %setup -q
@@ -93,7 +93,7 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %defattr(-,root,root)
 %doc COPYING
 %{_bindir}/bios_alerts_list_server
-%config(noreplace) %{_systemconfdir}/alerts-list/bios_alerts_list_server.cfg
+%config(noreplace) %{_systemconfdir}/alerts_list/bios_alerts_list_server.cfg
 %{_prefix}/lib/systemd/system/bios_alerts_list_server.service
 
 %changelog

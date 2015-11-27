@@ -1,5 +1,5 @@
 #
-#    alerts-list - Provides information about active alerts.
+#    alerts_list - Provides information about active alerts.
 #
 #    Copyright (C) 2014 - 2015 Eaton                                        
 #                                                                           
@@ -18,7 +18,7 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
 #
 
-Source:         alerts-list
+Source:         alerts_list
 Section:        net
 Priority:       optional
 Maintainer:     John Doe <John.Doe@example.com>
@@ -38,10 +38,10 @@ Build-Depends: bison, debhelper (>= 8),
 Package: libalerts_list0
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: alerts-list
- This package contains shared library for alerts-list: provides information about active alerts.
+Description: alerts_list
+ This package contains shared library for alerts_list: provides information about active alerts.
 
-Package: alerts-list-dev
+Package: alerts_list-dev
 Architecture: all
 Section: libdevel
 Depends:
@@ -52,17 +52,22 @@ Depends:
     libmlm-dev,
     libbiosproto-dev,
     ${misc:Depends}
-Description: development files for alerts-list
- This package contains development files for alerts-list: provides information about active alerts.
+Description: development files for alerts_list
+ This package contains development files for alerts_list: provides information about active alerts.
 
+Package: alerts_list
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: provides information about active alerts.
+ Main package for alerts_list: provides information about active alerts.
 
-Package: alerts-list-dbg
+Package: alerts_list-dbg
 Architecture: any
 Section: debug
 Priority: extra
 Depends:
-    libalerts_list0 (= ${binary:Version}),
+    alerts_list (= ${binary:Version}),
     ${misc:Depends}
-Description: debugging symbols for alerts-list
- This package contains the debugging symbols for alerts-list : provides information about active alerts..
+Description: debugging symbols for alerts_list
+ This package contains the debugging symbols for alerts_list : provides information about active alerts..
 

@@ -7,11 +7,11 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
 #
-# The version number is extracted from include/alerts-list.h using
+# The version number is extracted from include/alerts_list.h using
 # the version.sh script. Hence, it should be updated there.
 # The version in git should reflect the *next* version planned.
 #
-AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts-list])],[bios@eaton.com])
+AC_INIT([alerts_list],[m4_esyscmd([./version.sh alerts_list])],[bios@eaton.com])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -214,9 +214,9 @@ AC_CHECK_PROG(alerts_list_have_xmlto, xmlto, yes, no)
 if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "xno"; then
     alerts_list_build_doc="no"
     # Tarballs built with 'make dist' ship with prebuilt documentation.
-    if ! test -f doc/alerts-list.7; then
+    if ! test -f doc/alerts_list.7; then
         alerts_list_install_man="no"
-        AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
+        AC_MSG_WARN([You are building an unreleased version of ALERTS_LIST and asciidoc or xmlto are not installed.])
         AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])
     fi
 fi
@@ -333,6 +333,16 @@ AM_CONDITIONAL(ON_ANDROID, test "x$alerts_list_on_android" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$alerts_list_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$alerts_list_build_doc" = "xyes")
 
+# Check for bios_alerts_list_server intent
+AC_ARG_WITH([bios_alerts_list_server],
+    AS_HELP_STRING([--with-bios_alerts_list_server],
+        [Compile and install the bios_alerts_list_server program [default=yes].]),
+    [with_bios_alerts_list_server=$withval],
+    [with_bios_alerts_list_server=yes])
+
+AM_CONDITIONAL([WITH_BIOS_ALERTS_LIST_SERVER], [test x$with_bios_alerts_list_server != xno])
+AM_COND_IF([WITH_BIOS_ALERTS_LIST_SERVER], [AC_MSG_NOTICE([WITH_BIOS_ALERTS_LIST_SERVER defined])])
+
 # Checks for library functions.
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(perror gettimeofday memset getifaddrs)
@@ -349,6 +359,7 @@ AC_SUBST([pkgconfigdir])
 AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/libalerts_list.pc
+                 src/bios_alerts_list_server.service
                  ])
 AC_OUTPUT
 

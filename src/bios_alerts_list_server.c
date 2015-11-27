@@ -200,7 +200,9 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts
 void
 bios_alerts_list_server (zsock_t *pipe, void *args)
 {
-    static const char* endpoint = "inproc://bios-lm-server-test";
+    const char *endpoint = (const char *) args;
+    zsys_debug ("endpoint = %s", endpoint);
+//    static const char* endpoint = "inproc://bios-lm-server-test";
     zlistx_t *alerts = zlistx_new ();
     zlistx_set_destructor (alerts, (czmq_destructor *) bios_proto_destroy);
     zlistx_set_duplicator (alerts, (czmq_duplicator *) bios_proto_dup);
@@ -423,7 +425,7 @@ bios_alerts_list_server_test (bool verbose)
     mlm_client_set_producer (ap_client, "ALERTS");
 
     // Alert List
-    zactor_t *bios_al_server = zactor_new (bios_alerts_list_server, NULL);
+    zactor_t *bios_al_server = zactor_new (bios_alerts_list_server, (void *) endpoint);
 
     //  @selftest
     //  Simple create/destroy test
@@ -595,3 +597,15 @@ bios_alerts_list_server_test (bool verbose)
     printf ("OK\n");
 }
 
+int main (int argc, char **argv) {
+    
+    zsys_info ("alerts-list starting");
+    const char *endpoint = "ipc://@/malamute";    
+    zactor_t *bios_al_server = zactor_new (bios_alerts_list_server, (void *) endpoint);
+    // 
+    while (!zsys_interrupted) {
+        sleep (1000);
+    }
+    zactor_destroy (&bios_al_server);
+    return EXIT_SUCCESS;
+}

@@ -1,5 +1,5 @@
 <project
-    name = "alerts-list"
+    name = "alerts_list"
     description = "Provides information about active alerts."
     script = "zproject.gsl"
     email = "bios@eaton.com"
@@ -18,4 +18,5 @@
     </use>
 
     <class name = "bios_alerts_list_server">Providing information about active alerts</class>
+    <main name = "bios_alerts_list_server" service="1">TODO</main>    
 </project>
