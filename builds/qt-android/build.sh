@@ -66,17 +66,17 @@ fi
 }
 
 ##
-# Build alerts_list from local source
+# Build alerts-list from local source
 
 (android_build_verify_so "libalerts_list.so" "libmlm.so" "biosproto.so" &> /dev/null) || {
-    rm -rf "${cache}/alerts_list"
-    (cp -r ../.. "${cache}/alerts_list" && cd "${cache}/alerts_list" \
+    rm -rf "${cache}/alerts-list"
+    (cp -r ../.. "${cache}/alerts-list" && cd "${cache}/alerts-list" \
         && make clean && rm configure config.status)
     rm
 
     export LIBTOOL_EXTRA_LDFLAGS='-avoid-version'
 
-    (cd "${cache}/alerts_list" && ./autogen.sh \
+    (cd "${cache}/alerts-list" && ./autogen.sh \
         && ./configure "${ANDROID_BUILD_OPTS[@]}" \
         && make \
         && make install) || exit 1

@@ -2,7 +2,7 @@
 # -*- makefile -*-
 
 override_dh_strip:
-	dh_strip --dbg-package=alerts_list-dbg
+	dh_strip --dbg-package=alerts-list-dbg
 
 override_dh_auto_test:
 	echo "Skipped for now"

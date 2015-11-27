@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts_list - ALERTS_LIST wrapper
+    alerts-list - ALERTS-LIST wrapper
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -33,7 +33,7 @@
 #include <malamute.h>
 #include <biosproto.h>
 
-//  ALERTS_LIST version macros for compile-time API detection
+//  ALERTS-LIST version macros for compile-time API detection
 
 #define ALERTS_LIST_VERSION_MAJOR 0
 #define ALERTS_LIST_VERSION_MINOR 1
