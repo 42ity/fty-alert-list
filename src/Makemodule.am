@@ -52,7 +52,7 @@ src_bios_alerts_list_server_CPPFLAGS = ${AM_CPPFLAGS}
 src_bios_alerts_list_server_LDADD = ${program_libs}
 src_bios_alerts_list_server_SOURCES = src/bios_alerts_list_server.c
 src_bios_alerts_list_server_servicedir = @prefix@/lib/systemd/system
-src_bios_alerts_list_server_configdir = $(sysconfdir)/alerts_list
+src_bios_alerts_list_server_configdir = $(sysconfdir)/alerts-list
 src_bios_alerts_list_server_config_DATA = src/bios_alerts_list_server.cfg
 src_bios_alerts_list_server_service_DATA = src/bios_alerts_list_server.service
 endif

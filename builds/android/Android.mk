@@ -15,7 +15,7 @@ LOCAL_MODULE := zmq
 LOCAL_SRC_FILES := libzmq.so
 include $(PREBUILT_SHARED_LIBRARY)
 
-#   Build alerts_list
+#   Build alerts-list
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := alerts_list
