@@ -333,15 +333,15 @@ AM_CONDITIONAL(ON_ANDROID, test "x$alerts_list_on_android" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$alerts_list_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$alerts_list_build_doc" = "xyes")
 
-# Check for alerts_list_server intent
-AC_ARG_WITH([alerts_list_server],
-    AS_HELP_STRING([--with-alerts_list_server],
-        [Compile and install the alerts_list_server program [default=yes].]),
-    [with_alerts_list_server=$withval],
-    [with_alerts_list_server=yes])
+# Check for agent-alerts-list intent
+AC_ARG_WITH([agent-alerts-list],
+    AS_HELP_STRING([--with-agent-alerts-list],
+        [Compile and install the agent-alerts-list program [default=yes].]),
+    [with_agent_alerts_list=$withval],
+    [with_agent_alerts_list=yes])
 
-AM_CONDITIONAL([WITH_ALERTS_LIST_SERVER], [test x$with_alerts_list_server != xno])
-AM_COND_IF([WITH_ALERTS_LIST_SERVER], [AC_MSG_NOTICE([WITH_ALERTS_LIST_SERVER defined])])
+AM_CONDITIONAL([WITH_AGENT_ALERTS_LIST], [test x$with_agent_alerts_list != xno])
+AM_COND_IF([WITH_AGENT_ALERTS_LIST], [AC_MSG_NOTICE([WITH_AGENT_ALERTS_LIST defined])])
 
 # Check for agent_mockup intent
 AC_ARG_WITH([agent_mockup],

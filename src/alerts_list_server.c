@@ -597,15 +597,3 @@ alerts_list_server_test (bool verbose)
     printf ("OK\n");
 }
 
-int main (int argc, char **argv) {
-    
-    zsys_info ("alerts-list starting");
-    const char *endpoint = "ipc://@/malamute";    
-    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
-    // 
-    while (!zsys_interrupted) {
-        sleep (1000);
-    }
-    zactor_destroy (&bios_al_server);
-    return EXIT_SUCCESS;
-}

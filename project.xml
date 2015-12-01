@@ -18,7 +18,7 @@
     </use>
 
     <class name = "alerts_list_server" service="1">Providing information about active alerts</class>
-    <main name = "alerts_list_server">
+    <main name = "agent-alerts-list">
         Agent providing information about active alerts. Temporary
         <todo>Create a dynamic lib and implement the agent in core.git repo</todo>
     </main>
