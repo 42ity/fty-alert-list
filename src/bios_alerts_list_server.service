@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/bios_alerts_list_server /usr/local/etc/alerts_list/bios_alerts_list_server.cfg
+ExecStart=/usr/local/bin/bios_alerts_list_server /usr/local/etc/alerts-list/bios_alerts_list_server.cfg
 
 [Install]
 WantedBy=multi-user.target
