@@ -1,9 +1,5 @@
 /*  =========================================================================
-<<<<<<< HEAD
-    alerts_list - Provides information about active alerts.
-=======
     alerts-list - Provides information about active alerts.
->>>>>>> 1994c5c84b463bc914687d7a6e80b19d98158429
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            

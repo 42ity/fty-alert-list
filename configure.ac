@@ -11,7 +11,7 @@ AC_PREREQ(2.61)
 # the version.sh script. Hence, it should be updated there.
 # The version in git should reflect the *next* version planned.
 #
-AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts-list])],[bios@eaton.com])
+AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts-list.h])],[bios@eaton.com])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -214,7 +214,7 @@ AC_CHECK_PROG(alerts_list_have_xmlto, xmlto, yes, no)
 if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "xno"; then
     alerts_list_build_doc="no"
     # Tarballs built with 'make dist' ship with prebuilt documentation.
-    if ! test -f doc/alerts-list.7; then
+    if ! test -f doc/alerts_list.7; then
         alerts_list_install_man="no"
         AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
         AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])

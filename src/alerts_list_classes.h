@@ -27,7 +27,7 @@
 #define ALERTS_LIST_CLASSES_H_INCLUDED
 
 //  External API
-#include "../include/alerts_list.h"
+#include "../include/alerts-list.h"
 
 //  Internal API
 
