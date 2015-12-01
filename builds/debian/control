@@ -35,7 +35,7 @@ Build-Depends: bison, debhelper (>= 8),
     libbiosproto-dev,
     dh-autoreconf
 
-Package: libalerts_list0
+Package: libalerts-list0
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: alerts-list
@@ -45,7 +45,7 @@ Package: alerts-list-dev
 Architecture: all
 Section: libdevel
 Depends:
-    libalerts_list0 (= ${binary:Version}),
+    libalerts-list0 (= ${binary:Version}),
     ${shlibs:Depends},
     libzmq4-dev,
     libczmq-dev,
