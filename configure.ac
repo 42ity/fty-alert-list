@@ -333,15 +333,15 @@ AM_CONDITIONAL(ON_ANDROID, test "x$alerts_list_on_android" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$alerts_list_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$alerts_list_build_doc" = "xyes")
 
-# Check for bios_alerts_list_server intent
-AC_ARG_WITH([bios_alerts_list_server],
-    AS_HELP_STRING([--with-bios_alerts_list_server],
-        [Compile and install the bios_alerts_list_server program [default=yes].]),
-    [with_bios_alerts_list_server=$withval],
-    [with_bios_alerts_list_server=yes])
+# Check for alerts_list_server intent
+AC_ARG_WITH([alerts_list_server],
+    AS_HELP_STRING([--with-alerts_list_server],
+        [Compile and install the alerts_list_server program [default=yes].]),
+    [with_alerts_list_server=$withval],
+    [with_alerts_list_server=yes])
 
-AM_CONDITIONAL([WITH_BIOS_ALERTS_LIST_SERVER], [test x$with_bios_alerts_list_server != xno])
-AM_COND_IF([WITH_BIOS_ALERTS_LIST_SERVER], [AC_MSG_NOTICE([WITH_BIOS_ALERTS_LIST_SERVER defined])])
+AM_CONDITIONAL([WITH_ALERTS_LIST_SERVER], [test x$with_alerts_list_server != xno])
+AM_COND_IF([WITH_ALERTS_LIST_SERVER], [AC_MSG_NOTICE([WITH_ALERTS_LIST_SERVER defined])])
 
 # Checks for library functions.
 AC_TYPE_SIGNAL
@@ -359,7 +359,6 @@ AC_SUBST([pkgconfigdir])
 AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/libalerts_list.pc
-                 src/bios_alerts_list_server.service
                  ])
 AC_OUTPUT
 

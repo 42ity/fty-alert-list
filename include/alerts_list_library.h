@@ -57,12 +57,12 @@
 #endif
 
 //  Opaque class structures to allow forward references
-typedef struct _bios_alerts_list_server_t bios_alerts_list_server_t;
-#define BIOS_ALERTS_LIST_SERVER_T_DEFINED
+typedef struct _alerts_list_server_t alerts_list_server_t;
+#define ALERTS_LIST_SERVER_T_DEFINED
 
 
 //  Public API classes
-#include "bios_alerts_list_server.h"
+#include "alerts_list_server.h"
 
 #endif
 /*

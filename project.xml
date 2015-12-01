@@ -17,6 +17,6 @@
         <use project = "malamute"/>
     </use>
 
-    <class name = "bios_alerts_list_server">Providing information about active alerts</class>
-    <main name = "bios_alerts_list_server" service="1">TODO</main>    
+    <class name = "alerts_list_server" service="1">Providing information about active alerts</class>
+    <main name = "alerts_list_server">TODO</main>    
 </project>
