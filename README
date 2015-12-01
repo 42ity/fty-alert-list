@@ -1,6 +1,0 @@
-To build alets-list project run:
-sh ./generate.sh
-./autogen.sh
-./configure
-make
-make check
