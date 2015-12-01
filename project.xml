@@ -7,7 +7,7 @@
     license = "GPL-2.0+"
     >
     <include filename = "license.xml" />
-    <version major = "0" minor = "1" patch = "0" />
+    <version major = "0" minor = "5" patch = "0" />
     <use project = "malamute" />
 
     <use project = "biosproto" libname = "biosproto" prefix="biosproto"
@@ -18,5 +18,16 @@
     </use>
 
     <class name = "alerts_list_server" service="1">Providing information about active alerts</class>
-    <main name = "alerts_list_server">TODO</main>    
+    <main name = "alerts_list_server">
+        Agent providing information about active alerts. Temporary
+        <todo>Create a dynamic lib and implement the agent in core.git repo</todo>
+    </main>
+    
+    <main name = "agent_mockup" private = "1">
+        Agent providing mocked-up information about active alerts that are either hardcoded, read from
+        a file, stdin... 
+        Very useful as a mockup counterpart for testing rest api etc...
+    </main>
+    
+
 </project>

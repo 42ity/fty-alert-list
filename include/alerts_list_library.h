@@ -36,7 +36,7 @@
 //  ALERTS-LIST version macros for compile-time API detection
 
 #define ALERTS_LIST_VERSION_MAJOR 0
-#define ALERTS_LIST_VERSION_MINOR 1
+#define ALERTS_LIST_VERSION_MINOR 5
 #define ALERTS_LIST_VERSION_PATCH 0
 
 #define ALERTS_LIST_MAKE_VERSION(major, minor, patch) \

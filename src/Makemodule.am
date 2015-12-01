@@ -52,6 +52,12 @@ src_alerts_list_server_CPPFLAGS = ${AM_CPPFLAGS}
 src_alerts_list_server_LDADD = ${program_libs}
 src_alerts_list_server_SOURCES = src/alerts_list_server.c
 endif
+if WITH_AGENT_MOCKUP
+noinst_PROGRAMS += src/agent_mockup
+src_agent_mockup_CPPFLAGS = ${AM_CPPFLAGS}
+src_agent_mockup_LDADD = ${program_libs}
+src_agent_mockup_SOURCES = src/agent_mockup.c
+endif
 
 
 # define custom target for all products of /src

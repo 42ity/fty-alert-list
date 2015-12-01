@@ -1,5 +1,5 @@
 /*  =========================================================================
-    bios_alerts_list_server - Providing information about active alerts
+    agent_mockup - Providing information about active and resolved alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -19,34 +19,24 @@
     =========================================================================
 */
 
-#ifndef BIOS_ALERTS_LIST_SERVER_H_INCLUDED
-#define BIOS_ALERTS_LIST_SERVER_H_INCLUDED
+#include <czmq.h>
+#include "../include/alerts-list.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-//  @interface
-//  Create a new bios_alerts_list_server
-ALERTS_LIST_EXPORT bios_alerts_list_server_t *
-    bios_alerts_list_server_new (void);
-
-//  Destroy the bios_alerts_list_server
-ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_destroy (bios_alerts_list_server_t **self_p);
-
-//  Print properties of object
-ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_print (bios_alerts_list_server_t *self);
-
-//  Self test of this class
-ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_test (bool verbose);
-//  @end
-
-#ifdef __cplusplus
+int main (int argc, char **argv) {
+    zsys_info ("alerts-list MOCKUP starting");
+    char *endpoint = NULL;
+    if (argc > 1)
+        endpoint = strdup (argv[1]);
+    else
+        endpoint = strdup ("ipc://@/malamute");
+    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
+    //
+    // Push some message on ALERTS stream in here
+    // 
+    while (!zsys_interrupted) {
+        sleep (5000);
+    }
+    zactor_destroy (&bios_al_server);
+    free (endpoint); endpoint = NULL;
+    return EXIT_SUCCESS;
 }
-#endif
-
-#endif

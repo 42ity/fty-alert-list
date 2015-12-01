@@ -40,7 +40,7 @@ AC_SUBST(PACKAGE_VERSION)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 #
 # libalerts_list -version-info
-LTVER="0:1:0"
+LTVER="0:5:0"
 AC_SUBST(LTVER)
 
 # Capture c flags
@@ -342,6 +342,16 @@ AC_ARG_WITH([alerts_list_server],
 
 AM_CONDITIONAL([WITH_ALERTS_LIST_SERVER], [test x$with_alerts_list_server != xno])
 AM_COND_IF([WITH_ALERTS_LIST_SERVER], [AC_MSG_NOTICE([WITH_ALERTS_LIST_SERVER defined])])
+
+# Check for agent_mockup intent
+AC_ARG_WITH([agent_mockup],
+    AS_HELP_STRING([--with-agent_mockup],
+        [Compile the agent_mockup program [default=yes].]),
+    [with_agent_mockup=$withval],
+    [with_agent_mockup=yes])
+
+AM_CONDITIONAL([WITH_AGENT_MOCKUP], [test x$with_agent_mockup != xno])
+AM_COND_IF([WITH_AGENT_MOCKUP], [AC_MSG_NOTICE([WITH_AGENT_MOCKUP defined])])
 
 # Checks for library functions.
 AC_TYPE_SIGNAL

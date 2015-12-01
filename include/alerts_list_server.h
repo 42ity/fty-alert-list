@@ -26,21 +26,12 @@
 extern "C" {
 #endif
 
-
 //  @interface
-//  Create a new alerts_list_server
-ALERTS_LIST_EXPORT alerts_list_server_t *
-    alerts_list_server_new (void);
 
-//  Destroy the alerts_list_server
+//  zactor ready fnction
 ALERTS_LIST_EXPORT void
-    alerts_list_server_destroy (alerts_list_server_t **self_p);
+    alerts_list_server (zsock_t *pipe, void *args);
 
-//  Print properties of object
-ALERTS_LIST_EXPORT void
-    alerts_list_server_print (alerts_list_server_t *self);
-
-//  Self test of this class
 ALERTS_LIST_EXPORT void
     alerts_list_server_test (bool verbose);
 //  @end
