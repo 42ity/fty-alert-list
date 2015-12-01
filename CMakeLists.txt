@@ -125,8 +125,8 @@ ENDIF (BIOSPROTO_FOUND)
 ########################################################################
 set (alerts-list_headers
     include/alerts_list_library.h
-    include/alerts_list.h
-    include/bios_alerts_list_server.h
+    include/alerts-list.h
+    include/alerts_list_server.h
 )
 source_group ("Header Files" FILES ${alerts-list_headers})
 install(FILES ${alerts-list_headers} DESTINATION include)
@@ -136,7 +136,7 @@ install(FILES ${alerts-list_headers} DESTINATION include)
 ########################################################################
 include_directories("${BINARY_DIR}" "${SOURCE_DIR}/include")
 set (alerts-list_sources
-    src/bios_alerts_list_server.c
+    src/alerts_list_server.c
 )
 source_group ("Source Files" FILES ${alerts-list_sources})
 if (NOT DEFINED BUILD_SHARED_LIBS)
@@ -180,7 +180,7 @@ set(CLASSTEST_TIMEOUT 5 CACHE STRING "Timeout of the selftest of a class")
 set(TOTAL_TIMEOUT 20 CACHE STRING "Timout of the total testsuite")
 
 set(TEST_CLASSES
-  bios_alerts_list_server_test
+  alerts_list_server_test
 )
 
 foreach(TEST_CLASS ${TEST_CLASSES})

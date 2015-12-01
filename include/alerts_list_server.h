@@ -1,5 +1,5 @@
 /*  =========================================================================
-    bios_alerts_list_server - Providing information about active alerts
+    alerts_list_server - Providing information about active alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -19,30 +19,21 @@
     =========================================================================
 */
 
-#ifndef BIOS_ALERTS_LIST_SERVER_H_INCLUDED
-#define BIOS_ALERTS_LIST_SERVER_H_INCLUDED
+#ifndef ALERTS_LIST_SERVER_H_INCLUDED
+#define ALERTS_LIST_SERVER_H_INCLUDED
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
 //  @interface
-//  Create a new bios_alerts_list_server
-ALERTS_LIST_EXPORT bios_alerts_list_server_t *
-    bios_alerts_list_server_new (void);
 
-//  Destroy the bios_alerts_list_server
+//  zactor ready fnction
 ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_destroy (bios_alerts_list_server_t **self_p);
+    alerts_list_server (zsock_t *pipe, void *args);
 
-//  Print properties of object
 ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_print (bios_alerts_list_server_t *self);
-
-//  Self test of this class
-ALERTS_LIST_EXPORT void
-    bios_alerts_list_server_test (bool verbose);
+    alerts_list_server_test (bool verbose);
 //  @end
 
 #ifdef __cplusplus

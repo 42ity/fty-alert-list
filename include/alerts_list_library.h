@@ -36,7 +36,7 @@
 //  ALERTS-LIST version macros for compile-time API detection
 
 #define ALERTS_LIST_VERSION_MAJOR 0
-#define ALERTS_LIST_VERSION_MINOR 1
+#define ALERTS_LIST_VERSION_MINOR 5
 #define ALERTS_LIST_VERSION_PATCH 0
 
 #define ALERTS_LIST_MAKE_VERSION(major, minor, patch) \
@@ -57,12 +57,12 @@
 #endif
 
 //  Opaque class structures to allow forward references
-typedef struct _bios_alerts_list_server_t bios_alerts_list_server_t;
-#define BIOS_ALERTS_LIST_SERVER_T_DEFINED
+typedef struct _alerts_list_server_t alerts_list_server_t;
+#define ALERTS_LIST_SERVER_T_DEFINED
 
 
 //  Public API classes
-#include "bios_alerts_list_server.h"
+#include "alerts_list_server.h"
 
 #endif
 /*

@@ -1,5 +1,5 @@
 /*  =========================================================================
-    bios_alerts_list_server - Providing information about active and resolved alerts
+    alerts_list_server - Providing information about active and resolved alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -21,7 +21,7 @@
 
 /*
 @header
-    bios_alerts_list_server - Providing information about active and resolved alerts
+    alerts_list_server - Providing information about active and resolved alerts
 @discuss
 @end
 */
@@ -198,7 +198,7 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts
 }
 
 void
-bios_alerts_list_server (zsock_t *pipe, void *args)
+alerts_list_server (zsock_t *pipe, void *args)
 {
     const char *endpoint = (const char *) args;
     zsys_debug ("endpoint = %s", endpoint);
@@ -404,7 +404,7 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
 
 
 void
-bios_alerts_list_server_test (bool verbose)
+alerts_list_server_test (bool verbose)
 {
 
     static const char* endpoint = "inproc://bios-lm-server-test";
@@ -425,7 +425,7 @@ bios_alerts_list_server_test (bool verbose)
     mlm_client_set_producer (ap_client, "ALERTS");
 
     // Alert List
-    zactor_t *bios_al_server = zactor_new (bios_alerts_list_server, (void *) endpoint);
+    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
 
     //  @selftest
     //  Simple create/destroy test
@@ -601,7 +601,7 @@ int main (int argc, char **argv) {
     
     zsys_info ("alerts-list starting");
     const char *endpoint = "ipc://@/malamute";    
-    zactor_t *bios_al_server = zactor_new (bios_alerts_list_server, (void *) endpoint);
+    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
     // 
     while (!zsys_interrupted) {
         sleep (1000);

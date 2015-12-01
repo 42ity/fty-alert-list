@@ -14,11 +14,11 @@ pkgconfig_DATA = src/libalerts_list.pc
 
 include_HEADERS = \
     include/alerts-list.h \
-    include/bios_alerts_list_server.h \
+    include/alerts_list_server.h \
     include/alerts_list_library.h
 
 src_libalerts_list_la_SOURCES = \
-    src/bios_alerts_list_server.c \
+    src/alerts_list_server.c \
     src/platform.h
 
 src_libalerts_list_la_CPPFLAGS = ${AM_CPPFLAGS}
@@ -46,15 +46,17 @@ check_PROGRAMS += src/alerts_list_selftest
 src_alerts_list_selftest_CPPFLAGS = ${src_libalerts_list_la_CPPFLAGS}
 src_alerts_list_selftest_LDADD = ${program_libs}
 
-if WITH_BIOS_ALERTS_LIST_SERVER
-bin_PROGRAMS += src/bios_alerts_list_server
-src_bios_alerts_list_server_CPPFLAGS = ${AM_CPPFLAGS}
-src_bios_alerts_list_server_LDADD = ${program_libs}
-src_bios_alerts_list_server_SOURCES = src/bios_alerts_list_server.c
-src_bios_alerts_list_server_servicedir = @prefix@/lib/systemd/system
-src_bios_alerts_list_server_configdir = $(sysconfdir)/alerts-list
-src_bios_alerts_list_server_config_DATA = src/bios_alerts_list_server.cfg
-src_bios_alerts_list_server_service_DATA = src/bios_alerts_list_server.service
+if WITH_ALERTS_LIST_SERVER
+bin_PROGRAMS += src/alerts_list_server
+src_alerts_list_server_CPPFLAGS = ${AM_CPPFLAGS}
+src_alerts_list_server_LDADD = ${program_libs}
+src_alerts_list_server_SOURCES = src/alerts_list_server.c
+endif
+if WITH_AGENT_MOCKUP
+noinst_PROGRAMS += src/agent_mockup
+src_agent_mockup_CPPFLAGS = ${AM_CPPFLAGS}
+src_agent_mockup_LDADD = ${program_libs}
+src_agent_mockup_SOURCES = src/agent_mockup.c
 endif
 
 

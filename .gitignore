@@ -79,12 +79,7 @@ src/app/jni/output
 
 # Other
 CMakeLists.txt
-builds/msvc/vs2008/alerts_list/alerts_list.vcproj
-builds/msvc/vs2010/alerts_list/alerts_list.vcxproj
-builds/msvc/vs2010/alerts_list/alerts_list.vcxproj.filters
-builds/msvc/vs2012/alerts_list/alerts_list.vcxproj
-builds/msvc/vs2012/alerts_list/alerts_list.vcxproj.filters
-builds/msvc/vs2013/alerts_list/alerts_list.vcxproj
-builds/msvc/vs2013/alerts_list/alerts_list.vcxproj.filters
-builds/msvc/vs2015/alerts_list/alerts_list.vcxproj
-builds/msvc/vs2015/alerts_list/alerts_list.vcxproj.filters
+builds/msvc/
+builds/android/
+builds/cygwin/
+builds/mingw32/
