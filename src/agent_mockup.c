@@ -29,10 +29,62 @@ int main (int argc, char **argv) {
         endpoint = strdup (argv[1]);
     else
         endpoint = strdup ("ipc://@/malamute");
+
     zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
-    //
+    
     // Push some message on ALERTS stream in here
-    // 
+    mlm_client_t *ap_client = mlm_client_new ();
+    mlm_client_connect (ap_client, endpoint, 1000, "agent-alerts-list-mockup");
+    mlm_client_set_producer (ap_client, "ALERTS");
+
+    bios_proto_t *alert = bios_proto_new (BIOS_PROTO_ALERT);
+    assert (alert);
+    bios_proto_set_rule (alert, "Threshold");
+    bios_proto_set_element_src (alert, "ups");
+    bios_proto_set_state (alert, "ACTIVE");
+    bios_proto_set_severity (alert, "high");
+    bios_proto_set_description (alert, "description");
+    bios_proto_set_action (alert, "EMAIL");
+    bios_proto_set_time (alert, 1);
+
+    zmsg_t *zmessage = bios_proto_encode (&alert);
+    assert (zmessage);
+    int rv = mlm_client_send (ap_client, "Nobody here cares about this.", &zmessage);
+    assert (rv == 0);
+    zclock_sleep (500);
+
+    alert = bios_proto_new (BIOS_PROTO_ALERT);
+    assert (alert);
+    bios_proto_set_rule (alert, "Pattern");
+    bios_proto_set_element_src (alert, "epdu");
+    bios_proto_set_state (alert, "ACTIVE");
+    bios_proto_set_severity (alert, "high");
+    bios_proto_set_description (alert, "description");
+    bios_proto_set_action (alert, "EMAIL|SMS");
+    bios_proto_set_time (alert, 2);
+
+    zmessage = bios_proto_encode (&alert);
+    assert (zmessage);
+    rv = mlm_client_send (ap_client, "Nobody here cares about this.", &zmessage);
+    assert (rv == 0);
+    zclock_sleep (500);
+
+    alert = bios_proto_new (BIOS_PROTO_ALERT);
+    assert (alert);
+    bios_proto_set_rule (alert, "Single");
+    bios_proto_set_element_src (alert,  "ups");
+    bios_proto_set_state (alert, "ACTIVE");
+    bios_proto_set_severity (alert, "high");
+    bios_proto_set_description (alert, "description");
+    bios_proto_set_action (alert, "EMAIL|SMS");
+    bios_proto_set_time (alert, 3);
+
+    zmessage = bios_proto_encode (&alert);
+    assert (zmessage);
+    rv = mlm_client_send (ap_client, "Nobody here cares about this.", &zmessage);
+    assert (rv == 0);
+    zclock_sleep (500);
+
     while (!zsys_interrupted) {
         sleep (5000);
     }
