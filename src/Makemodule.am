@@ -46,11 +46,11 @@ check_PROGRAMS += src/alerts_list_selftest
 src_alerts_list_selftest_CPPFLAGS = ${src_libalerts_list_la_CPPFLAGS}
 src_alerts_list_selftest_LDADD = ${program_libs}
 
-if WITH_ALERTS_LIST_SERVER
-bin_PROGRAMS += src/alerts_list_server
-src_alerts_list_server_CPPFLAGS = ${AM_CPPFLAGS}
-src_alerts_list_server_LDADD = ${program_libs}
-src_alerts_list_server_SOURCES = src/alerts_list_server.c
+if WITH_AGENT_ALERTS_LIST
+bin_PROGRAMS += src/agent-alerts-list
+src_agent_alerts_list_CPPFLAGS = ${AM_CPPFLAGS}
+src_agent_alerts_list_LDADD = ${program_libs}
+src_agent_alerts_list_SOURCES = src/agent-alerts-list.c
 endif
 if WITH_AGENT_MOCKUP
 noinst_PROGRAMS += src/agent_mockup
