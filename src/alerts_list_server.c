@@ -25,7 +25,7 @@
 @discuss
 @end
 */
-#include "../include/alerts-list.h"
+#include "../include/alerts_list.h"
 
 #define RFC_ALERTS_LIST_SUBJECT "rfc-alerts-list"
 

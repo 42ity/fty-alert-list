@@ -7,11 +7,11 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
 #
-# The version number is extracted from include/alerts-list.h using
+# The version number is extracted from include/alerts_list.h using
 # the version.sh script. Hence, it should be updated there.
 # The version in git should reflect the *next* version planned.
 #
-AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts-list.h])],[bios@eaton.com])
+AC_INIT([alerts_list],[m4_esyscmd([./version.sh alerts_list.h])],[bios@eaton.com])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -216,7 +216,7 @@ if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "x
     # Tarballs built with 'make dist' ship with prebuilt documentation.
     if ! test -f doc/alerts_list.7; then
         alerts_list_install_man="no"
-        AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
+        AC_MSG_WARN([You are building an unreleased version of ALERTS_LIST and asciidoc or xmlto are not installed.])
         AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])
     fi
 fi

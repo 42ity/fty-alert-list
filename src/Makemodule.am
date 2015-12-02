@@ -13,7 +13,7 @@ lib_LTLIBRARIES += src/libalerts_list.la
 pkgconfig_DATA = src/libalerts_list.pc
 
 include_HEADERS = \
-    include/alerts-list.h \
+    include/alerts_list.h \
     include/alerts_list_server.h \
     include/alerts_list_library.h
 

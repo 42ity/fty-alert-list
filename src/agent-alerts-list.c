@@ -25,7 +25,7 @@
 @discuss
 @end
 */
-#include "../include/alerts-list.h"
+#include "../include/alerts_list.h"
 
 int main (int argc, char **argv) {
 

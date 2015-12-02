@@ -1,5 +1,5 @@
 <project
-    name = "alerts-list"
+    name = "alerts_list"
     description = "Provides information about active alerts."
     script = "zproject.gsl"
     email = "bios@eaton.com"
