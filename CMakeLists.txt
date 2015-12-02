@@ -7,7 +7,7 @@
 # Project setup
 ########################################################################
 cmake_minimum_required(VERSION 2.8)
-project(alerts-list)
+project(alerts_list)
 enable_language(C)
 enable_testing()
 
@@ -18,15 +18,15 @@ set(BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 # determine version
 ########################################################################
 foreach(which MAJOR MINOR PATCH)
-    file(STRINGS "${SOURCE_DIR}/include/alerts_list_library.h" ALERTS-LIST_VERSION_STRING REGEX "#define ALERTS-LIST_VERSION_${which}")
-    string(REGEX MATCH "#define ALERTS-LIST_VERSION_${which} ([0-9_]+)" ALERTS-LIST_REGEX_MATCH "${ALERTS-LIST_VERSION_STRING}")
-    if (NOT ALERTS-LIST_REGEX_MATCH)
-        message(FATAL_ERROR "failed to parse ALERTS-LIST_VERSION_${which} from alerts-list.h")
+    file(STRINGS "${SOURCE_DIR}/include/alerts_list_library.h" ALERTS_LIST_VERSION_STRING REGEX "#define ALERTS_LIST_VERSION_${which}")
+    string(REGEX MATCH "#define ALERTS_LIST_VERSION_${which} ([0-9_]+)" ALERTS_LIST_REGEX_MATCH "${ALERTS_LIST_VERSION_STRING}")
+    if (NOT ALERTS_LIST_REGEX_MATCH)
+        message(FATAL_ERROR "failed to parse ALERTS_LIST_VERSION_${which} from alerts_list.h")
     endif()
-    set(ALERTS-LIST_${which}_VERSION ${CMAKE_MATCH_1})
+    set(ALERTS_LIST_${which}_VERSION ${CMAKE_MATCH_1})
 endforeach(which)
 
-set(ALERTS-LIST_VERSION ${ALERTS-LIST_MAJOR_VERSION}.${ALERTS-LIST_MINOR_VERSION}.${ALERTS-LIST_PATCH_VERSION})
+set(ALERTS_LIST_VERSION ${ALERTS_LIST_MAJOR_VERSION}.${ALERTS_LIST_MINOR_VERSION}.${ALERTS_LIST_PATCH_VERSION})
 
 ########################################################################
 # platform.h
@@ -123,30 +123,30 @@ ENDIF (BIOSPROTO_FOUND)
 ########################################################################
 # includes
 ########################################################################
-set (alerts-list_headers
+set (alerts_list_headers
     include/alerts_list_library.h
-    include/alerts-list.h
+    include/alerts_list.h
     include/alerts_list_server.h
 )
-source_group ("Header Files" FILES ${alerts-list_headers})
-install(FILES ${alerts-list_headers} DESTINATION include)
+source_group ("Header Files" FILES ${alerts_list_headers})
+install(FILES ${alerts_list_headers} DESTINATION include)
 
 ########################################################################
 # library
 ########################################################################
 include_directories("${BINARY_DIR}" "${SOURCE_DIR}/include")
-set (alerts-list_sources
+set (alerts_list_sources
     src/alerts_list_server.c
 )
-source_group ("Source Files" FILES ${alerts-list_sources})
+source_group ("Source Files" FILES ${alerts_list_sources})
 if (NOT DEFINED BUILD_SHARED_LIBS)
     SET(BUILD_SHARED_LIBS ON)
 endif()
-add_library(alerts-list ${alerts-list_sources})
-set_target_properties(alerts-list PROPERTIES DEFINE_SYMBOL "LIBALERTS_LIST_EXPORTS")
-target_link_libraries(alerts-list ${ZEROMQ_LIBRARIES} ${MORE_LIBRARIES})
+add_library(alerts_list ${alerts_list_sources})
+set_target_properties(alerts_list PROPERTIES DEFINE_SYMBOL "LIBALERTS_LIST_EXPORTS")
+target_link_libraries(alerts_list ${ZEROMQ_LIBRARIES} ${MORE_LIBRARIES})
 
-install(TARGETS alerts-list
+install(TARGETS alerts_list
     LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
     ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
     RUNTIME DESTINATION bin              # .dll file
@@ -155,7 +155,7 @@ install(TARGETS alerts-list
 ########################################################################
 # pkgconfig
 ########################################################################
-set(VERSION "${ALERTS-LIST_VERSION}")
+set(VERSION "${ALERTS_LIST_VERSION}")
 set(prefix "${CMAKE_INSTALL_PREFIX}")
 set(exec_prefix "\${prefix}")
 set(libdir "\${prefix}/lib${LIB_SUFFIX}")
@@ -174,7 +174,7 @@ install(
 # tests
 ########################################################################
 add_executable(alerts_list_selftest "${SOURCE_DIR}/src/alerts_list_selftest.c")
-target_link_libraries(alerts_list_selftest alerts-list ${ZEROMQ_LIBRARIES})
+target_link_libraries(alerts_list_selftest alerts_list ${ZEROMQ_LIBRARIES})
 
 set(CLASSTEST_TIMEOUT 5 CACHE STRING "Timeout of the selftest of a class")
 set(TOTAL_TIMEOUT 20 CACHE STRING "Timout of the total testsuite")
@@ -193,7 +193,7 @@ set_tests_properties(alerts_list_selftest PROPERTIES TIMEOUT ${TOTAL_TIMEOUT})
 ########################################################################
 # summary
 ########################################################################
-message(STATUS "version: ${ALERTS-LIST_VERSION}")
+message(STATUS "version: ${ALERTS_LIST_VERSION}")
 message(STATUS "install: ${CMAKE_INSTALL_PREFIX}")
 
 ################################################################################

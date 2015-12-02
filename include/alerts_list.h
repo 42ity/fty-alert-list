@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts-list - Provides information about active alerts.
+    alerts_list - Provides information about active alerts.
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
