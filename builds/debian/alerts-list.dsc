@@ -18,5 +18,5 @@ Build-Depends: bison, debhelper (>= 8),
 
 Package-List:
  alerts-list dev net optional arch-any
- libalerts_list0 dev net optional arch-any
+ libalerts-list0 dev net optional arch-any
 
