@@ -92,8 +92,8 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %files
 %defattr(-,root,root)
 %doc COPYING
-%{_bindir}/bios_alerts_list_server
-%config(noreplace) %{_systemconfdir}/alerts-list/bios_alerts_list_server.cfg
-%{_prefix}/lib/systemd/system/bios_alerts_list_server.service
+%{_bindir}/agent-alerts-list
+%config(noreplace) %{_systemconfdir}/alerts-list/agent-alerts-list.cfg
+%{_prefix}/lib/systemd/system/agent-alerts-list.service
 
 %changelog
