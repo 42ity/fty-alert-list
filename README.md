@@ -24,9 +24,10 @@ ALERT-LIST-PROVIDER peer:
 
 * LIST/state - request list of alerts of specified 'state'
 
-where '/' indicates a multipart string message, 'state' MUST be one of [ ALL |
-ACTIVE | ACK-WIP | ACK-IGNORE | ACK-PAUSE | ACK-SILENCE ] and subject
-of the message MUST be "rfc-alerts-list".
+where
+* '/' indicates a multipart string message
+* 'state' MUST be one of [ ALL | ACTIVE | ACK-WIP | ACK-IGNORE | ACK-PAUSE | ACK-SILENCE ]
+* subject of the message MUST be "rfc-alerts-list".
 
 
 The ALERT-LIST-PROVIDER peer MUST respond with one of the messages back to USER
@@ -36,11 +37,11 @@ peer using MAILBOX SEND.
 * ERROR/reason
 
 where
- * '/' indicates a multipart frame message
- * 'state' is string and value MUST be repeated from request
- * 'reason' is string detailing reason for error. If requested 'state' does not
+* '/' indicates a multipart frame message
+* 'state' is string and value MUST be repeated from request
+* 'reason' is string detailing reason for error. If requested 'state' does not
     exist, the ALERT-LIST-PROVIDER peer MUST assign NOT_FOUND string as reason.
- * 'alert_X' is an encoded ALERT message (from libbiosproto) representing alert
+* 'alert_X' is an encoded ALERT message (from libbiosproto) representing alert
     of requested state and subject of the message MUST be "rfc-alerts-list".
 
 
