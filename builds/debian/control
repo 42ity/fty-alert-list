@@ -45,7 +45,7 @@ Package: alerts-list-dev
 Architecture: all
 Section: libdevel
 Depends:
-    libalerts_list0 (= ${binary:Version}),
+    libalerts-list0 (= ${binary:Version}),
     ${shlibs:Depends},
     libzmq4-dev,
     libczmq-dev,
