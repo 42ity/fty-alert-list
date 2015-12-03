@@ -1,23 +1,22 @@
 
-
-## Alerts-list agent 
+# Alerts-list agent 
 Alerts-list agent implements ALERTS-LIST-PROVIDER part of RFC-Alerts-List protocol
 
-
-### How to build
+## How to build
 
 To build alets-list project run:
 
+```bash
 sh ./generate.sh
 ./autogen.sh
 ./configure
 make
 make check # to run self-test
+```
 
-### Protocols
+## Protocols
 
-
-#### RFC-Alerts-List  -  Alerts list protocol
+### RFC-Alerts-List  -  Alerts list protocol
 Connects USER peer to ALERTS-LIST-PROVIDER peer.
 
 The USER peer sends one of the following messages using MAILBOX SEND to
