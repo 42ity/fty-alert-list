@@ -72,7 +72,7 @@ This package contains development files.
 %defattr(-,root,root)
 %{_includedir}/*
 %{_libdir}/libalerts_list.so
-%{_libdir}/pkgconfig/alerts-list.pc
+%{_libdir}/pkgconfig/libalerts_list.pc
 
 %prep
 %setup -q
