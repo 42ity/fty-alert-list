@@ -16,10 +16,10 @@
 #    You should have received a copy of the GNU General Public License along
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
-# 
+#
 
 Name:           alerts-list
-Version:        0.1.0
+Version:        0.5.0
 Release:        1
 Summary:        provides information about active alerts.
 License:        GPL-2.0+
@@ -62,7 +62,7 @@ Requires:       libalerts_list0 = %{version}
 Requires:       zeromq-devel
 Requires:       czmq-devel
 Requires:       malamute-devel
-Requires:       biosproto-devel
+Requires:       libbiosproto-devel
 
 %description devel
 alerts-list provides information about active alerts..
@@ -91,9 +91,10 @@ find %{buildroot} -name '*.la' | xargs rm -f
 
 %files
 %defattr(-,root,root)
+%doc README.md
 %doc COPYING
 %{_bindir}/agent-alerts-list
-%config(noreplace) %{_systemconfdir}/alerts-list/agent-alerts-list.cfg
+%{_bindir}/agent_mockup
 %{_prefix}/lib/systemd/system/agent-alerts-list.service
 
 %changelog

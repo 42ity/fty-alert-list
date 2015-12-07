@@ -1,0 +1,11 @@
+[Unit]
+Description=agent-alerts-list service
+After=network.target
+
+[Service]
+Type=simple
+Environment="prefix=@prefix@"
+ExecStart=@prefix@/bin/agent-alerts-list
+
+[Install]
+WantedBy=multi-user.target

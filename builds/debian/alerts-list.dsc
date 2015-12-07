@@ -1,7 +1,7 @@
 Format:         1.0
 Source:         alerts-list
-Version:        0.1.0-1
-Binary:         alerts-list, libalerts-list0
+Version:        0.5.0-1
+Binary:         alerts-list, libalerts_list0
 Architecture:   any all
 Maintainer:     John Doe <John.Doe@example.com>
 Standards-Version: 3.9.5
@@ -18,5 +18,5 @@ Build-Depends: bison, debhelper (>= 8),
 
 Package-List:
  alerts-list dev net optional arch-any
- libalerts-list0 dev net optional arch-any
+ libalerts_list0 dev net optional arch-any
 

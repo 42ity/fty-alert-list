@@ -13,10 +13,10 @@ AM_CPPFLAGS = \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
     ${malamute_CFLAGS} \
-    ${biosproto_CFLAGS} \
+    ${libbiosproto_CFLAGS} \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${biosproto_LIBS}
+project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${libbiosproto_LIBS}
 
 SUBDIRS = doc
 DIST_SUBDIRS = doc
@@ -29,6 +29,7 @@ TESTS =
 
 EXTRA_DIST = \
     src/alerts_list_classes.h \
+    README.md \
     version.sh
 
 include $(srcdir)/src/Makemodule.am

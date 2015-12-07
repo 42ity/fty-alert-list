@@ -11,7 +11,7 @@ AC_PREREQ(2.61)
 # the version.sh script. Hence, it should be updated there.
 # The version in git should reflect the *next* version planned.
 #
-AC_INIT([alerts_list],[m4_esyscmd([./version.sh alerts_list.h])],[bios@eaton.com])
+AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts_list.h])],[bios@eaton.com])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -148,9 +148,9 @@ if test "x$was_malamute_check_lib_detected" = "xno"; then
 fi
 
 
-was_biosproto_check_lib_detected=no
+was_libbiosproto_check_lib_detected=no
 
-PKG_CHECK_MODULES([biosproto], [biosproto >= 0.0.0],
+PKG_CHECK_MODULES([libbiosproto], [biosproto >= 0.0.0],
     [
     ],
     [
@@ -162,13 +162,13 @@ PKG_CHECK_MODULES([biosproto], [biosproto >= 0.0.0],
             [search_biosproto="yes"],
             [])
 
-        biosproto_synthetic_cflags=""
-        biosproto_synthetic_libs="-lbiosproto"
+        libbiosproto_synthetic_cflags=""
+        libbiosproto_synthetic_libs="-lbiosproto"
 
         if test "x$search_biosproto" = "xyes"; then
             if test -r "${with_biosproto}/include/biosproto.h"; then
-                biosproto_synthetic_cflags="-I${with_biosproto}/include"
-                biosproto_synthetic_libs="-L${with_biosproto}/lib -lbiosproto"
+                libbiosproto_synthetic_cflags="-I${with_biosproto}/include"
+                libbiosproto_synthetic_libs="-L${with_biosproto}/lib -lbiosproto"
             else
                 AC_MSG_ERROR([${with_biosproto}/include/biosproto.h not found. Please check biosproto prefix])
             fi
@@ -176,20 +176,20 @@ PKG_CHECK_MODULES([biosproto], [biosproto >= 0.0.0],
 
         AC_CHECK_LIB([biosproto], [bios_proto_test],
             [
-                CFLAGS="${biosproto_synthetic_cflags} ${CFLAGS}"
-                LDFLAGS="${biosproto_synthetic_libs} ${LDFLAGS}"
-                LIBS="${biosproto_synthetic_libs} ${LIBS}"
+                CFLAGS="${libbiosproto_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${libbiosproto_synthetic_libs} ${LDFLAGS}"
+                LIBS="${libbiosproto_synthetic_libs} ${LIBS}"
 
-                AC_SUBST([biosproto_CFLAGS],[${biosproto_synthetic_cflags}])
-                AC_SUBST([biosproto_LIBS],[${biosproto_synthetic_libs}])
-                was_biosproto_check_lib_detected=yes
+                AC_SUBST([libbiosproto_CFLAGS],[${libbiosproto_synthetic_cflags}])
+                AC_SUBST([libbiosproto_LIBS],[${libbiosproto_synthetic_libs}])
+                was_libbiosproto_check_lib_detected=yes
             ],
             [AC_MSG_ERROR([cannot link with -lbiosproto, install biosproto.])])
     ])
 
-if test "x$was_biosproto_check_lib_detected" = "xno"; then
-    CFLAGS="${biosproto_CFLAGS} ${CFLAGS}"
-    LIBS="${biosproto_LIBS} ${LIBS}"
+if test "x$was_libbiosproto_check_lib_detected" = "xno"; then
+    CFLAGS="${libbiosproto_CFLAGS} ${CFLAGS}"
+    LIBS="${libbiosproto_LIBS} ${LIBS}"
 fi
 
 
@@ -216,7 +216,7 @@ if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "x
     # Tarballs built with 'make dist' ship with prebuilt documentation.
     if ! test -f doc/alerts_list.7; then
         alerts_list_install_man="no"
-        AC_MSG_WARN([You are building an unreleased version of ALERTS_LIST and asciidoc or xmlto are not installed.])
+        AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
         AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])
     fi
 fi
@@ -369,6 +369,7 @@ AC_SUBST([pkgconfigdir])
 AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/libalerts_list.pc
+                 src/agent-alerts-list.service
                  ])
 AC_OUTPUT
 

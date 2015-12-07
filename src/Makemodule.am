@@ -51,6 +51,8 @@ bin_PROGRAMS += src/agent-alerts-list
 src_agent_alerts_list_CPPFLAGS = ${AM_CPPFLAGS}
 src_agent_alerts_list_LDADD = ${program_libs}
 src_agent_alerts_list_SOURCES = src/agent-alerts-list.c
+src_agent_alerts_list_servicedir = @prefix@/lib/systemd/system
+src_agent_alerts_list_service_DATA = src/agent-alerts-list.service
 endif
 if WITH_AGENT_MOCKUP
 noinst_PROGRAMS += src/agent_mockup
