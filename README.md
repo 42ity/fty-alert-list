@@ -7,7 +7,6 @@ Alerts-list agent implements ALERTS-LIST-PROVIDER part of RFC-Alerts-List protoc
 To build alets-list project run:
 
 ```bash
-sh ./generate.sh
 ./autogen.sh
 ./configure
 make
