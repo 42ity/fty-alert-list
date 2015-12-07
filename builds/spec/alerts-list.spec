@@ -94,7 +94,6 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %doc README.md
 %doc COPYING
 %{_bindir}/agent-alerts-list
-%{_bindir}/agent_mockup
 %{_prefix}/lib/systemd/system/agent-alerts-list.service
 
 %changelog
