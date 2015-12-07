@@ -33,7 +33,7 @@ BuildRequires:  pkg-config
 BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
-BuildRequires:  biosproto-devel
+BuildRequires:  libbiosproto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
