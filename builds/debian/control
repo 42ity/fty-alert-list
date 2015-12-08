@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License along
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
-#
+
 
 Source:         alerts-list
 Section:        net
@@ -35,9 +35,9 @@ Build-Depends: bison, debhelper (>= 8),
     libbiosproto-dev,
     dh-autoreconf
 
-Package: libalerts_list0
+Package: libalerts-list0
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: alerts-list
  This package contains shared library for alerts-list: provides information about active alerts.
 
@@ -45,13 +45,11 @@ Package: alerts-list-dev
 Architecture: all
 Section: libdevel
 Depends:
-    libalerts_list0 (= ${binary:Version}),
-    ${shlibs:Depends},
     libzmq4-dev,
     libczmq-dev,
     libmlm-dev,
-    liblibbiosproto-dev,
-    ${misc:Depends}
+    libbiosproto-dev,
+    libalerts-list0 (= ${binary:Version})
 Description: development files for alerts-list
  This package contains development files for alerts-list: provides information about active alerts.
 
