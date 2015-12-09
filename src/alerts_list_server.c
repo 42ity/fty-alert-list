@@ -90,6 +90,9 @@ s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
         return;
     }
 
+    if (bios_proto_time (alert) == -1)
+        bios_proto_set_time (alert, time (NULL));
+
     bios_proto_t *cursor = (bios_proto_t *) zlistx_first (alerts);
     if (cursor) {
         int found = 0;
@@ -581,7 +584,7 @@ alerts_list_server_test (bool verbose)
     reply = mlm_client_recv (ui_client);
     assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
     assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
-    assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+    assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));
     part = zmsg_popstr (reply);
     assert (streq (part, "ERROR"));
     free (part); part = NULL;
@@ -589,9 +592,35 @@ alerts_list_server_test (bool verbose)
     assert (part);
     free (part); part = NULL;
 
+    //Test case #1549 - time -1 is converted to actual time
+    alert = test_alert_new ("#1549", "epdu", "ACTIVE", "high", "description", -1, "EMAIL|SMS");
+    test_alert_publish (ap_client, alerts, &alert);
+    reply = test_request_alerts_list (ui_client, "ALL");
+    zmsg_print (reply);
+    assert (zmsg_size (reply) == 8);
+
+    zframe_t *frame;
+    // remove LIST ALL frames
+    frame = zmsg_pop (reply); assert (frame); zframe_destroy (&frame);
+    frame = zmsg_pop (reply); assert (frame); zframe_destroy (&frame);
+
+    for (int i = 0; i != 8-2; i++) {
+        frame = zmsg_pop (reply);
+        assert (frame);
+        zmsg_t *decoded_zmsg = zmsg_decode (zframe_data (frame), zframe_size (frame));
+        zframe_destroy (&frame);
+
+        assert (decoded_zmsg);
+        bios_proto_t *m = bios_proto_decode (&decoded_zmsg);
+        // test that no time has -1
+        assert (bios_proto_time (m) != -1);
+        bios_proto_destroy (&m);
+    }
+    zmsg_destroy (&reply);
+
     mlm_client_destroy (&ui_client);
     mlm_client_destroy (&ap_client);
-   
+
     zactor_destroy (&bios_al_server);
     zactor_destroy (&server);
     printf ("OK\n");
