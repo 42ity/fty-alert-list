@@ -28,6 +28,10 @@
         a file, stdin... 
         Very useful as a mockup counterpart for testing rest api etc...
     </main>
+
+    <main name = "generate_alert" private = "1">
+        Testing tool: generates alert on ALERTS stream
+    </main>
     
 
 </project>
