@@ -25,6 +25,7 @@
 @discuss
 @end
 */
+#include <string.h>
 #include "../include/alerts_list.h"
 
 #define RFC_ALERTS_LIST_SUBJECT "rfc-alerts-list"
@@ -36,7 +37,12 @@ alert_id_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
     assert (bios_proto_id (alert1) == BIOS_PROTO_ALERT);
     assert (bios_proto_id (alert2) == BIOS_PROTO_ALERT);
 
-    if (streq (bios_proto_rule (alert1), bios_proto_rule (alert2)) &&
+    if (bios_proto_rule (alert1) == NULL ||
+        bios_proto_rule (alert2) == NULL) {
+        return 1;
+    }
+
+    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) == 0 &&
         streq (bios_proto_element_src (alert1), bios_proto_element_src (alert2))) {
         return 0;
     }
@@ -52,7 +58,12 @@ alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
     assert (bios_proto_id (alert1) == BIOS_PROTO_ALERT);
     assert (bios_proto_id (alert2) == BIOS_PROTO_ALERT);
 
-    if (streq (bios_proto_rule (alert1), bios_proto_rule (alert2)) &&
+    if (bios_proto_rule (alert1) == NULL ||
+        bios_proto_rule (alert2) == NULL) {
+        return 1;
+    }
+
+    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) == 0 &&
         streq (bios_proto_element_src (alert1), bios_proto_element_src (alert2)) &&
         streq (bios_proto_state (alert1), bios_proto_state (alert2)) &&
         streq (bios_proto_severity (alert1), bios_proto_severity (alert2)) &&
