@@ -108,8 +108,8 @@ test_available (const char *testname)
 static inline void
 test_runall (bool verbose)
 {
-    printf ("Running alerts-list selftests...\n");
     test_item_t *item;
+    printf ("Running alerts-list selftests...\n");
     for (item = all_tests; item->test; item++)
         item->test (verbose);
 

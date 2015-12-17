@@ -19,12 +19,10 @@
 *.lo
 
 # Executables
-<<<<<<< HEAD
+agent-alerts-list
+agent_mockup
+generate_alert
 alerts_list_selftest
-bios_alerts_list_server
-=======
-alert-list_selftest
->>>>>>> 1994c5c84b463bc914687d7a6e80b19d98158429
 *.exe
 *.out
 *.app
@@ -83,3 +81,7 @@ builds/msvc/
 builds/android/
 builds/cygwin/
 builds/mingw32/
+builds/qt-android/
+
+# Bindings
+bindings/

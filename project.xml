@@ -7,9 +7,10 @@
     license = "GPL-2.0+"
     >
     <include filename = "license.xml" />
-    <version major = "0" minor = "5" patch = "0" />
-    <use project = "malamute" />
+    <version major = "0" minor = "6" patch = "0" />
 
+    <use project = "czmq" />
+    <use project = "malamute" />
     <use project = "libbiosproto" libname = "biosproto" prefix="biosproto"
         min_major = "0" min_minor = "0" min_patch = "0"
         repository = "https://stash.mbt.lab.etn.com/BIOS/libbiosproto"
@@ -18,15 +19,13 @@
     </use>
 
     <class name = "alerts_list_server">Providing information about active alerts</class>
+
     <main name = "agent-alerts-list" service="1" no_config="1">
-        Agent providing information about active alerts. Temporary
-        <todo>Create a dynamic lib and implement the agent in core.git repo</todo>
+        Agent providing information about active alerts
     </main>
-    
-    <main name = "agent_mockup" private = "1">
-        Agent providing mocked-up information about active alerts that are either hardcoded, read from
-        a file, stdin... 
-        Very useful as a mockup counterpart for testing rest api etc...
+
+    <main name = "generate_alert">
+        Tool to generate alert on ALERTS stream
     </main>
     
 

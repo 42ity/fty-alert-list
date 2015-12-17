@@ -19,7 +19,7 @@
 #
 
 Name:           alerts-list
-Version:        0.5.0
+Version:        0.6.0
 Release:        1
 Summary:        provides information about active alerts.
 License:        GPL-2.0+
@@ -94,6 +94,8 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %doc README.md
 %doc COPYING
 %{_bindir}/agent-alerts-list
-%{_prefix}/lib/systemd/system/agent-alerts-list.service
+%{_bindir}/generate_alert
+%{_prefix}/lib/systemd/system/agent-alerts-list*.service
+
 
 %changelog
