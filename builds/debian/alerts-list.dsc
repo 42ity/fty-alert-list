@@ -1,6 +1,6 @@
 Format:         1.0
 Source:         alerts-list
-Version:        0.5.0-1
+Version:        0.6.0-1
 Binary:         libalerts-list0, alerts-list-dev
 Architecture:   any all
 Maintainer:     John Doe <John.Doe@example.com>

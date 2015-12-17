@@ -47,9 +47,16 @@ int main (int argc, char **argv) {
 
     mlm_client_t *client = mlm_client_new ();
     srand ((unsigned) time (NULL));
-    char strtemp[32];
-    snprintf (strtemp, 32, "generate_alert.%d%d", rand () % 10, rand () % 10);
+    char *strtemp = NULL;
+    int rv = asprintf (&strtemp, "generate_alert.%d%d", rand () % 10, rand () % 10);
+    if (rv == -1) {
+        zsys_error ("asprintf() failed");
+        free (endpoint); endpoint = NULL;
+        mlm_client_destroy (&client);
+        return EXIT_FAILURE;
+    }
     mlm_client_connect (client, endpoint, 1000, strtemp);
+    free (strtemp); strtemp = NULL;
     mlm_client_set_producer (client, "ALERTS");
 
     zmsg_t *alert_message = bios_proto_encode_alert (
@@ -68,10 +75,21 @@ int main (int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    snprintf (strtemp, 32, "%s@%s", argv[1], argv[2]);
-    int rv = mlm_client_send (client, strtemp, &alert_message);
+    // rule_name/severity@element_name
+    rv = asprintf (&strtemp, "%s/%s@%s", argv[1], argv[4], argv[2]);
+    if (rv == -1) {
+        zsys_error ("asprintf() failed");
+        free (endpoint); endpoint = NULL;
+        mlm_client_destroy (&client);
+        return EXIT_FAILURE;
+    }   
+    rv = mlm_client_send (client, strtemp, &alert_message);
+    free (strtemp); strtemp = NULL;
     if (rv != 0) {
         zsys_error ("mlm_client_send () failed");
+        free (endpoint); endpoint = NULL;
+        mlm_client_destroy (&client);
+        return EXIT_FAILURE;
     }
     free (endpoint); endpoint = NULL;
     mlm_client_destroy (&client);
