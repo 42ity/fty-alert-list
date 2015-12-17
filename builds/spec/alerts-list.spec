@@ -34,6 +34,7 @@ BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
 BuildRequires:  libbiosproto-devel
+BuildRequires:  systemd-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -79,7 +80,7 @@ This package contains development files.
 
 %build
 sh autogen.sh
-%{configure}
+%{configure} --with-systemd
 make %{_smp_mflags}
 
 %install
