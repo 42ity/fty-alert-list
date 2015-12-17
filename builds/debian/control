@@ -33,7 +33,8 @@ Build-Depends: bison, debhelper (>= 8),
     libczmq-dev,
     libmlm-dev,
     libbiosproto-dev,
-    dh-autoreconf
+    dh-autoreconf,
+    libsystemd-dev
 
 Package: libalerts-list0
 Architecture: any

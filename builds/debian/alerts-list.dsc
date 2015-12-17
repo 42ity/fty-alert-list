@@ -14,7 +14,8 @@ Build-Depends: bison, debhelper (>= 8),
     libczmq-dev,
     libmlm-dev,
     libbiosproto-dev,
-    dh-autoreconf
+    dh-autoreconf,
+    systemd-dev
 
 Package-List:
  libalerts-list0 deb net optional arch=any
