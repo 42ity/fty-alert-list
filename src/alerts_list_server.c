@@ -456,10 +456,11 @@ alerts_list_server_test (bool verbose)
 
     reply = test_request_alerts_list (ui_client, "ACK-WIP");
     test_check_result ("ACK-WIP", alerts, &reply, 0);
-    
+
     reply = test_request_alerts_list (ui_client, "ACK-IGNORE");
     test_check_result ("ACK-IGNORE", alerts, &reply, 0);
-    
+    zlistx_destroy (&alerts);
+
     // add new alert
     bios_proto_t *alert = test_alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
