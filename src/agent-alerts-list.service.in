@@ -1,11 +1,18 @@
 [Unit]
 Description=agent-alerts-list service
+Requires=network.target
 After=network.target
+PartOf=bios.target
 
 [Service]
 Type=simple
+User=nobody
+EnvironmentFile=-/etc/default/bios
+EnvironmentFile=-/etc/sysconfig/bios
+EnvironmentFile=-/etc/default/bios__%n.conf
+EnvironmentFile=-/etc/sysconfig/bios__%n.conf
 Environment="prefix=@prefix@"
 ExecStart=@prefix@/bin/agent-alerts-list
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=bios.target
