@@ -1,7 +1,7 @@
 [Unit]
 Description=agent-alerts-list service
-Requires=network.target
-After=network.target
+Requires=malamute.target
+After=malamute.target
 PartOf=bios.target
 
 [Service]
