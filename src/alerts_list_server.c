@@ -340,12 +340,15 @@ test_check_result (const char *state, zlistx_t *expected, zmsg_t **reply_p, int 
         bios_proto_destroy (&decoded);
         frame = zmsg_pop (reply);        
     }
+
     // compare the two by iterative substraction
     int rv = test_zlistx_same (state, expected, received);
-    if (fail)
+    if (fail) {
         assert (rv == 0);
-    else
+    }
+    else {
         assert (rv == 1);
+    }
     zlistx_destroy (&received);
     zmsg_destroy (reply_p); 
 }
@@ -356,7 +359,7 @@ test_alert_new (const char *rule,
                 const char *state,
                 const char *severity,
                 const char *description,
-                uint64_t time,
+                int64_t timestamp,
                 const char *action
                 ) {
     bios_proto_t *alert = bios_proto_new (BIOS_PROTO_ALERT);
@@ -367,7 +370,10 @@ test_alert_new (const char *rule,
     bios_proto_set_severity (alert, severity);
     bios_proto_set_description (alert, description);
     bios_proto_set_action (alert, action);
-    bios_proto_set_time (alert, time);
+    if (timestamp < 0)
+        bios_proto_set_time (alert, time (NULL));
+    else
+        bios_proto_set_time (alert, timestamp);
     return alert;
 }
 
@@ -451,65 +457,54 @@ alerts_list_server_test (bool verbose)
     zmsg_t *reply = test_request_alerts_list (ui_client, "ALL");
     assert (reply);
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACK-WIP");
     test_check_result ("ACK-WIP", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACK-IGNORE");
     test_check_result ("ACK-IGNORE", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // add new alert
     bios_proto_t *alert = test_alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
     test_check_result ("ACK-PAUSE", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // add new alert
     alert = test_alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 2, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // add new alert
     alert = test_alert_new ("SimpleRule", "ups", "ACTIVE", "high", "description", 3, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // add new alert
     alert = test_alert_new ("SimpleRule", "karolkovo", "ACTIVE", "high", "description", 4, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACTIVE");
     test_check_result ("ACTIVE", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // change state
     alert = test_alert_new ("Threshold", "epdu", "ACK-WIP", "high", "description", 5, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // change state back
     alert = test_alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 6, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // change state of two alerts
     alert = test_alert_new ("Threshold", "ups", "ACK-PAUSE", "high", "description", 7, "EMAIL|SMS");
@@ -518,39 +513,42 @@ alerts_list_server_test (bool verbose)
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
     test_check_result ("ACK-PAUSE", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     alert = test_alert_new ("SimpleRule", "ups", "ACK-WIP", "high", "description", 9, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
  
     reply = test_request_alerts_list (ui_client, "ACK-WIP");
     test_check_result ("ACK-WIP", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // resolve alert
     alert = test_alert_new ("SimpleRule", "karolkovo", "RESOLVED", "high", "description", 10, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
-    zmsg_destroy (&reply);
+
+    //Test case #1549 - time -1 is converted to actual time
+    alert = test_alert_new ("#1549", "epdu", "ACTIVE", "high", "description", -1, "EMAIL|SMS");
+    test_alert_publish (ap_client, alerts, &alert);
+    reply = test_request_alerts_list (ui_client, "ALL");
+    test_check_result ("ALL", alerts, &reply, 0);
+
 
     // Now, let's publish an alert as-a-byspass (i.e. we don't add it to expected)
-    // and expect a failure (i.e. expected list != received list)
+    // and EXPECT A FAILURE (i.e. expected list != received list)
+    //
+    // IMPORTANT: After this line, don't use automated test_check_result () function - it will fail
     zmsg_t *alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACTIVE", "high", "description", 11, "EMAIL|SMS");
     mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
     zclock_sleep (500);
 
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 1);
-    zmsg_destroy (&reply);
 
     reply = test_request_alerts_list (ui_client, "ACTIVE");
     test_check_result ("ACTIVE", alerts, &reply, 1);
-    zmsg_destroy (&reply);
 
     alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACK-WIP", "high", "description", 12, "EMAIL|SMS");
     mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
@@ -558,11 +556,9 @@ alerts_list_server_test (bool verbose)
 
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 1);
-    zmsg_destroy (&reply);
     
     reply = test_request_alerts_list (ui_client, "ACK-WIP");
     test_check_result ("ACK-WIP", alerts, &reply, 1);
-    zmsg_destroy (&reply);
 
     // when requesting a different type, it should be ok though
     alert = test_alert_new ("BlackBooks", "store", "ACK-PAUSE", "high", "description", 13, "EMAIL|SMS");
@@ -570,7 +566,6 @@ alerts_list_server_test (bool verbose)
 
     reply = test_request_alerts_list (ui_client, "ACK-PAUSE");
     test_check_result ("ACK-PAUSE", alerts, &reply, 0);
-    zmsg_destroy (&reply);
 
     // Now, let's test an error response
     zmsg_t *send = zmsg_new ();
@@ -624,32 +619,8 @@ alerts_list_server_test (bool verbose)
     zstr_free (&part);
     zmsg_destroy (&reply);
 
-    //Test case #1549 - time -1 is converted to actual time
-    alert = test_alert_new ("#1549", "epdu", "ACTIVE", "high", "description", -1, "EMAIL|SMS");
-    test_alert_publish (ap_client, alerts, &alert);
-    reply = test_request_alerts_list (ui_client, "ALL");
-    assert (zmsg_size (reply) == 8);
 
-    zframe_t *frame;
-    // remove LIST ALL frames
-    frame = zmsg_pop (reply); assert (frame); zframe_destroy (&frame);
-    frame = zmsg_pop (reply); assert (frame); zframe_destroy (&frame);
-
-    for (int i = 0; i != 8-2; i++) {
-        frame = zmsg_pop (reply);
-        assert (frame);
-        zmsg_t *decoded_zmsg = zmsg_decode (zframe_data (frame), zframe_size (frame));
-        zframe_destroy (&frame);
-
-        assert (decoded_zmsg);
-        bios_proto_t *m = bios_proto_decode (&decoded_zmsg);
-        // test that no time has -1
-        assert (bios_proto_time (m) != -1);
-        bios_proto_destroy (&m);
-    }
-    zmsg_destroy (&reply);
     zlistx_destroy (&alerts);
-
     mlm_client_destroy (&ui_client);
     mlm_client_destroy (&ap_client);
 
