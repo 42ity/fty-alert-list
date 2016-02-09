@@ -54,6 +54,10 @@ src/stamp-h1
 src/test-suite.log
 src/.dirstamp
 
+# Cmake
+*.cmake
+CMakeLists.txt
+
 # qt-android build results
 builds/qt-android/prefix
 
