@@ -6,27 +6,28 @@
     url = "https://eaton.com/"
     license = "GPL-2.0+"
     >
+
+    <target name = "debian" />
+    <target name = "redhat" />
+
     <include filename = "license.xml" />
-    <version major = "0" minor = "6" patch = "0" />
+    <version major = "0" minor = "7" patch = "0" />
 
     <use project = "czmq" />
     <use project = "malamute" />
-    <use project = "libbiosproto" libname = "biosproto" prefix="biosproto"
+
+    <use project = "biosproto" libname = "libbiosproto" prefix="biosproto"
         min_major = "0" min_minor = "0" min_patch = "0"
         repository = "https://stash.mbt.lab.etn.com/BIOS/libbiosproto"
         test = "bios_proto_test">
         <use project = "malamute"/>
     </use>
 
+    <class name = "alerts_utils" private = "1">Helper functions</class> 
     <class name = "alerts_list_server">Providing information about active alerts</class>
 
-    <main name = "agent-alerts-list" service="1" no_config="1">
-        Agent providing information about active alerts
-    </main>
-
-    <main name = "generate_alert">
-        Tool to generate alert on ALERTS stream
-    </main>
+    <main name = "agent-alerts-list" service="1" no_config="1" />
+    <main name = "generate_alert" />
     
 
 </project>

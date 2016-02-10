@@ -1,0 +1,6 @@
+debian/tmp/usr/bin/agent-alerts-list
+debian/tmp/usr/bin/generate_alert
+debian/tmp/usr/lib/systemd/system/agent-alerts-list*.service
+
+
+

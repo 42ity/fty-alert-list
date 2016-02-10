@@ -26,70 +26,9 @@
 @end
 */
 #include <string.h>
-#include "../include/alerts_list.h"
+#include "alerts_list_classes.h"
 
 #define RFC_ALERTS_LIST_SUBJECT "rfc-alerts-list"
-
-static int
-alert_id_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
-    assert (alert1);
-    assert (alert2);
-    assert (bios_proto_id (alert1) == BIOS_PROTO_ALERT);
-    assert (bios_proto_id (alert2) == BIOS_PROTO_ALERT);
-
-    if (bios_proto_rule (alert1) == NULL ||
-        bios_proto_rule (alert2) == NULL) {
-        return 1;
-    }
-
-    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) == 0 &&
-        streq (bios_proto_element_src (alert1), bios_proto_element_src (alert2))) {
-        return 0;
-    }
-    else {
-        return 1;
-    }
-}
-
-static int
-alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
-    assert (alert1);
-    assert (alert2);
-    assert (bios_proto_id (alert1) == BIOS_PROTO_ALERT);
-    assert (bios_proto_id (alert2) == BIOS_PROTO_ALERT);
-
-    if (bios_proto_rule (alert1) == NULL ||
-        bios_proto_rule (alert2) == NULL) {
-        return 1;
-    }
-
-    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) == 0 &&
-        streq (bios_proto_element_src (alert1), bios_proto_element_src (alert2)) &&
-        streq (bios_proto_state (alert1), bios_proto_state (alert2)) &&
-        streq (bios_proto_severity (alert1), bios_proto_severity (alert2)) &&
-        streq (bios_proto_description (alert1), bios_proto_description (alert2)) &&
-        streq (bios_proto_action (alert1), bios_proto_action (alert2)) &&
-        bios_proto_time (alert1) == bios_proto_time (alert2)) {
-        return 0;
-    }
-    else {
-        return 1;
-    }
-}
-
-static int
-is_alertstate (const char *state) {
-    assert (state);
-    if (streq (state, "ALL") ||
-        streq (state, "ACTIVE") ||
-        streq (state, "ACK-WIP") ||
-        streq (state, "ACK-IGNORE") ||
-        streq (state, "ACK-PAUSE") ||
-        streq (state, "ACK-SILENCE")) {
-        return 1;
-    }
-    return 0;
-}
 
 static void
 s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
@@ -109,7 +48,7 @@ s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
         int found = 0;
         while (cursor) {
             if (alert_id_comparator (cursor, alert) == 0) {
-                if (streq (bios_proto_state (alert), "RESOLVED")) {
+                if (str_eq (bios_proto_state (alert), "RESOLVED")) {
                     zlistx_delete (alerts, zlistx_cursor (alerts));
                 }
                 else {
@@ -128,7 +67,7 @@ s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
             zlistx_add_end (alerts, alert);
         }
     }
-    else if (!streq (bios_proto_state (alert), "RESOLVED")) {
+    else if (!str_eq (bios_proto_state (alert), "RESOLVED")) {
         zlistx_add_end (alerts, alert);
     }
     bios_proto_destroy (&alert);
@@ -156,7 +95,7 @@ s_handle_rfc_alerts_list (mlm_client_t *client, zmsg_t **msg_p, zlistx_t *alerts
 
     zmsg_t *msg = *msg_p;
     char *command = zmsg_popstr (msg);
-    if (!command || !streq (command, "LIST")) {
+    if (!command || !str_eq (command, "LIST")) {
         free (command); command = NULL;
         zmsg_destroy (&msg);
         s_send_error_response (client, "BAD_MESSAGE");
@@ -177,7 +116,7 @@ s_handle_rfc_alerts_list (mlm_client_t *client, zmsg_t **msg_p, zlistx_t *alerts
     zmsg_addstr (reply, state);
     bios_proto_t *cursor = (bios_proto_t *) zlistx_first (alerts);
     while (cursor) {
-        if (streq (state, "ALL") || streq (state, bios_proto_state (cursor))) {
+        if (str_eq (state, "ALL") || str_eq (state, bios_proto_state (cursor))) {
             byte *buffer = NULL;
             bios_proto_t *duplicate = bios_proto_dup (cursor);
             zmsg_t *result = bios_proto_encode (&duplicate);
@@ -202,7 +141,7 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts
     assert (msg_p && *msg_p);
     assert (alerts);
 
-    if (streq (mlm_client_subject (client), RFC_ALERTS_LIST_SUBJECT)) {
+    if (str_eq (mlm_client_subject (client), RFC_ALERTS_LIST_SUBJECT)) {
         s_handle_rfc_alerts_list (client, msg_p, alerts);
     }
     else {
@@ -238,8 +177,8 @@ alerts_list_server (zsock_t *pipe, void *args)
         zmsg_t *msg = mlm_client_recv (client);
         if (!msg)
             break;
-        if (streq (mlm_client_command (client), "MAILBOX DELIVER")) {
-            if (streq (mlm_client_subject (client), RFC_ALERTS_LIST_SUBJECT)) {
+        if (str_eq (mlm_client_command (client), "MAILBOX DELIVER")) {
+            if (str_eq (mlm_client_subject (client), RFC_ALERTS_LIST_SUBJECT)) {
                 s_handle_mailbox_deliver (client, &msg, alerts);
             }
             else {
@@ -247,7 +186,7 @@ alerts_list_server (zsock_t *pipe, void *args)
                     mlm_client_subject (client), mlm_client_sender (client));
             }
         }
-        else if (streq (mlm_client_command (client), "STREAM DELIVER")) {
+        else if (str_eq (mlm_client_command (client), "STREAM DELIVER")) {
             s_handle_stream_deliver (&msg, alerts);
         }
         else {
@@ -281,9 +220,9 @@ test_request_alerts_list (mlm_client_t *user_interface, const char *state) {
         return NULL;
     }
     zmsg_t *reply = mlm_client_recv (user_interface);
-    assert (streq (mlm_client_command (user_interface), "MAILBOX DELIVER"));
-    assert (streq (mlm_client_sender (user_interface), "ALERTS-LIST"));
-    assert (streq (mlm_client_subject (user_interface), RFC_ALERTS_LIST_SUBJECT));
+    assert (str_eq (mlm_client_command (user_interface), "MAILBOX DELIVER"));
+    assert (str_eq (mlm_client_sender (user_interface), "ALERTS-LIST"));
+    assert (str_eq (mlm_client_subject (user_interface), RFC_ALERTS_LIST_SUBJECT));
     assert (reply);
     return reply;
 }
@@ -295,7 +234,7 @@ test_zlistx_same (const char *state, zlistx_t *expected, zlistx_t *received) {
     assert (received);
     bios_proto_t *cursor = (bios_proto_t *) zlistx_first (expected);
     while (cursor) {
-        if (streq (state, "ALL") || streq (state, bios_proto_state (cursor))) {
+        if (str_eq (state, "ALL") || str_eq (state, bios_proto_state (cursor))) {
             void *handle = zlistx_find (received, cursor);
             if (!handle)
                 return 0;
@@ -318,10 +257,10 @@ test_check_result (const char *state, zlistx_t *expected, zmsg_t **reply_p, int 
     zmsg_t *reply = *reply_p;
     // check leading protocol frames (strings)
     char *part = zmsg_popstr (reply);
-    assert (streq (part, "LIST"));
+    assert (str_eq (part, "LIST"));
     free (part); part = NULL;
     part = zmsg_popstr (reply);
-    assert (streq (part, state));
+    assert (str_eq (part, state));
     free (part); part = NULL;
 
     zlistx_t *received = zlistx_new ();
@@ -403,7 +342,7 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
     void *handle = zlistx_find (alerts, (void *) *message);
     if (handle) {
         bios_proto_t *item = (bios_proto_t *) zlistx_handle_item (handle);
-        if (streq (bios_proto_state (*message), "RESOLVED")) {
+        if (str_eq (bios_proto_state (*message), "RESOLVED")) {
             zlistx_delete (alerts, handle);
         }
         else {
@@ -574,14 +513,14 @@ alerts_list_server_test (bool verbose)
     int rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
     assert (rv == 0);
     reply = mlm_client_recv (ui_client);
-    assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
-    assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
-    assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+    assert (str_eq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+    assert (str_eq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+    assert (str_eq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
     char *part = zmsg_popstr (reply);
-    assert (streq (part, "ERROR"));
+    assert (str_eq (part, "ERROR"));
     zstr_free (&part);
     part = zmsg_popstr (reply);
-    assert (streq (part, "NOT_FOUND"));
+    assert (str_eq (part, "NOT_FOUND"));
     zstr_free (&part);
     zmsg_destroy (&reply);
 
@@ -591,14 +530,14 @@ alerts_list_server_test (bool verbose)
     rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
     assert (rv == 0);
     reply = mlm_client_recv (ui_client);
-    assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
-    assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
-    assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
+    assert (str_eq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+    assert (str_eq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+    assert (str_eq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));   
     part = zmsg_popstr (reply);
-    assert (streq (part, "ERROR"));
+    assert (str_eq (part, "ERROR"));
     zstr_free (&part);
     part = zmsg_popstr (reply);
-    assert (streq (part, "NOT_FOUND"));
+    assert (str_eq (part, "NOT_FOUND"));
     zstr_free (&part);
     zmsg_destroy (&reply);
 
@@ -608,11 +547,11 @@ alerts_list_server_test (bool verbose)
     rv = mlm_client_sendto (ui_client, "ALERTS-LIST", RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &send);
     assert (rv == 0);
     reply = mlm_client_recv (ui_client);
-    assert (streq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
-    assert (streq (mlm_client_sender (ui_client), "ALERTS-LIST"));
-    assert (streq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));
+    assert (str_eq (mlm_client_command (ui_client), "MAILBOX DELIVER"));
+    assert (str_eq (mlm_client_sender (ui_client), "ALERTS-LIST"));
+    assert (str_eq (mlm_client_subject (ui_client), RFC_ALERTS_LIST_SUBJECT));
     part = zmsg_popstr (reply);
-    assert (streq (part, "ERROR"));
+    assert (str_eq (part, "ERROR"));
     zstr_free (&part);
     part = zmsg_popstr (reply);
     assert (part);

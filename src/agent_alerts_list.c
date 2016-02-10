@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts_list_server - Providing information about active and resolved alerts
+    agent_alerts_list - Agent providing information about active alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -21,13 +21,37 @@
 
 /*
 @header
-    alerts_list_server - Providing information about active and resolved alerts
+    agent_alerts_list - Agent providing information about active alerts
 @discuss
 @end
 */
-#include "../include/alerts_list.h"
 
-int main (int argc, char **argv) {
+#include "alerts_list_classes.h"
+
+int main (int argc, char *argv [])
+{
+    bool verbose = false;
+    int argn;
+    for (argn = 1; argn < argc; argn++) {
+        if (streq (argv [argn], "--help") ||
+            streq (argv [argn], "-h")) {
+            puts ("agent-alerts-list [options] ...");
+            puts ("  --verbose / -v         verbose test output");
+            puts ("  --help / -h            this information");
+            return 0;
+        }
+        else if (streq (argv [argn], "--verbose") ||
+                 streq (argv [argn], "-v")) {
+            verbose = true;
+        } 
+        else {
+            printf ("Unknown option: %s\n", argv [argn]);
+            return 1;
+        }
+    }
+    //  Insert main code here
+    if (verbose)
+        zsys_info ("agent_alerts_list - Agent providing information about active alerts"); // TODO: rewite alerts_list_server to accept VERBOSE
 
     zsys_info ("alerts-list starting");
     const char *endpoint = "ipc://@/malamute";
@@ -39,5 +63,3 @@ int main (int argc, char **argv) {
     zactor_destroy (&bios_al_server);
     return EXIT_SUCCESS;
 }
-
-

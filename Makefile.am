@@ -6,17 +6,19 @@
 ACLOCAL_AMFLAGS = -I config
 
 AM_CFLAGS = \
-	-Werror=format-security
+    -Werror=format-security
 
 
 AM_CPPFLAGS = \
+    ${libsodium_CFLAGS} \
     ${libzmq_CFLAGS} \
+    ${uuid_CFLAGS} \
     ${czmq_CFLAGS} \
     ${malamute_CFLAGS} \
-    ${libbiosproto_CFLAGS} \
+    ${biosproto_CFLAGS} \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${libbiosproto_LIBS}
+project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${uuid_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${biosproto_LIBS}
 
 SUBDIRS = doc
 DIST_SUBDIRS = doc
@@ -28,9 +30,9 @@ noinst_LTLIBRARIES =
 TESTS =
 
 EXTRA_DIST = \
-    src/alerts_list_classes.h \
+    src/alerts_utils.h \
     README.md \
-    version.sh
+    src/alerts_list_classes.h
 
 include $(srcdir)/src/Makemodule.am
 

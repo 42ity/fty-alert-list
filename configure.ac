@@ -7,11 +7,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
 #
-# The version number is extracted from include/alerts_list.h using
-# the version.sh script. Hence, it should be updated there.
-# The version in git should reflect the *next* version planned.
-#
-AC_INIT([alerts-list],[m4_esyscmd([./version.sh alerts_list.h])],[bios@eaton.com])
+AC_INIT([alerts-list],[0.7.0],[bios@eaton.com])
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -40,7 +36,7 @@ AC_SUBST(PACKAGE_VERSION)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 #
 # libalerts_list -version-info
-LTVER="0:6:0"
+LTVER="0:7:0"
 AC_SUBST(LTVER)
 
 # Capture c flags
@@ -67,19 +63,98 @@ if test "x${ALERTS_LIST_GCOV}" == "xyes"; then
     if test "x${ALERTS_LIST_ORIG_CFLAGS}" != "xnone"; then
         CFLAGS="${CFLAGS} ${ALERTS_LIST_ORIG_CFLAGS}"
     fi
+    AM_CONDITIONAL(WITH_GCOV, true)
+else
+    AM_CONDITIONAL(WITH_GCOV, false)
 fi
 
 PREVIOUS_CFLAGS="${CFLAGS}"
 PREVIOUS_LIBS="${LIBS}"
 
 
+was_libsodium_check_lib_detected=no
+
+PKG_CHECK_MODULES([libsodium], [libsodium >= 0.0.0],
+    [
+        AC_DEFINE(HAVE_LIBSODIUM, 1, [The libsodium library is to be used.])
+    ],
+    [
+        AC_ARG_WITH([libsodium],
+            [
+                AS_HELP_STRING([--with-libsodium],
+                [Specify libsodium prefix])
+            ],
+            [search_libsodium="yes"],
+            [])
+
+        libsodium_synthetic_cflags=""
+        libsodium_synthetic_libs="-lsodium"
+
+        if test "x$search_libsodium" = "xyes"; then
+            if test -r "${with_libsodium}/include/sodium.h"; then
+                libsodium_synthetic_cflags="-I${with_libsodium}/include"
+                libsodium_synthetic_libs="-L${with_libsodium}/lib -lsodium"
+            else
+                AC_MSG_ERROR([${with_libsodium}/include/sodium.h not found. Please check libsodium prefix])
+            fi
+        fi
+
+        AC_CHECK_LIB([libsodium], [sodium_init],
+            [
+                CFLAGS="${libsodium_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${libsodium_synthetic_libs} ${LDFLAGS}"
+                LIBS="${libsodium_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([libsodium_CFLAGS],[${libsodium_synthetic_cflags}])
+                AC_SUBST([libsodium_LIBS],[${libsodium_synthetic_libs}])
+                was_libsodium_check_lib_detected=yes
+                AC_DEFINE(HAVE_LIBSODIUM, 1, [The libsodium library is to be used.])
+            ],
+            [])
+    ])
+
+if test "x$was_libsodium_check_lib_detected" = "xno"; then
+    CFLAGS="${libsodium_CFLAGS} ${CFLAGS}"
+    LIBS="${libsodium_LIBS} ${LIBS}"
+fi
+
 was_libzmq_check_lib_detected=no
 
-PKG_CHECK_MODULES([libzmq], [libzmq >= 2.2.0],
+PKG_CHECK_MODULES([libzmq], [libzmq >= 0.0.0],
     [
     ],
     [
-        AC_MSG_ERROR([Cannot find required package for libzmq. Note, pkg-config is required due to specified version >= 2.2.0])
+        AC_ARG_WITH([libzmq],
+            [
+                AS_HELP_STRING([--with-libzmq],
+                [Specify libzmq prefix])
+            ],
+            [search_libzmq="yes"],
+            [])
+
+        libzmq_synthetic_cflags=""
+        libzmq_synthetic_libs="-lzmq"
+
+        if test "x$search_libzmq" = "xyes"; then
+            if test -r "${with_libzmq}/include/zmq.h"; then
+                libzmq_synthetic_cflags="-I${with_libzmq}/include"
+                libzmq_synthetic_libs="-L${with_libzmq}/lib -lzmq"
+            else
+                AC_MSG_ERROR([${with_libzmq}/include/zmq.h not found. Please check libzmq prefix])
+            fi
+        fi
+
+        AC_CHECK_LIB([libzmq], [zmq_init],
+            [
+                CFLAGS="${libzmq_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${libzmq_synthetic_libs} ${LDFLAGS}"
+                LIBS="${libzmq_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([libzmq_CFLAGS],[${libzmq_synthetic_cflags}])
+                AC_SUBST([libzmq_LIBS],[${libzmq_synthetic_libs}])
+                was_libzmq_check_lib_detected=yes
+            ],
+            [AC_MSG_ERROR([cannot link with -lzmq, install libzmq.])])
     ])
 
 if test "x$was_libzmq_check_lib_detected" = "xno"; then
@@ -87,6 +162,51 @@ if test "x$was_libzmq_check_lib_detected" = "xno"; then
     LIBS="${libzmq_LIBS} ${LIBS}"
 fi
 
+was_uuid_check_lib_detected=no
+
+PKG_CHECK_MODULES([uuid], [uuid >= 0.0.0],
+    [
+        AC_DEFINE(HAVE_UUID, 1, [The uuid library is to be used.])
+    ],
+    [
+        AC_ARG_WITH([uuid],
+            [
+                AS_HELP_STRING([--with-uuid],
+                [Specify uuid prefix])
+            ],
+            [search_uuid="yes"],
+            [])
+
+        uuid_synthetic_cflags=""
+        uuid_synthetic_libs="-luuid"
+
+        if test "x$search_uuid" = "xyes"; then
+            if test -r "${with_uuid}/include/uuid/uuid.h"; then
+                uuid_synthetic_cflags="-I${with_uuid}/include"
+                uuid_synthetic_libs="-L${with_uuid}/lib -luuid"
+            else
+                AC_MSG_ERROR([${with_uuid}/include/uuid/uuid.h not found. Please check uuid prefix])
+            fi
+        fi
+
+        AC_CHECK_LIB([uuid], [uuid_generate],
+            [
+                CFLAGS="${uuid_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${uuid_synthetic_libs} ${LDFLAGS}"
+                LIBS="${uuid_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([uuid_CFLAGS],[${uuid_synthetic_cflags}])
+                AC_SUBST([uuid_LIBS],[${uuid_synthetic_libs}])
+                was_uuid_check_lib_detected=yes
+                AC_DEFINE(HAVE_UUID, 1, [The uuid library is to be used.])
+            ],
+            [])
+    ])
+
+if test "x$was_uuid_check_lib_detected" = "xno"; then
+    CFLAGS="${uuid_CFLAGS} ${CFLAGS}"
+    LIBS="${uuid_LIBS} ${LIBS}"
+fi
 
 was_czmq_check_lib_detected=no
 
@@ -132,7 +252,6 @@ if test "x$was_czmq_check_lib_detected" = "xno"; then
     LIBS="${czmq_LIBS} ${LIBS}"
 fi
 
-
 was_malamute_check_lib_detected=no
 
 PKG_CHECK_MODULES([malamute], [libmlm >= 0.0.0],
@@ -177,51 +296,49 @@ if test "x$was_malamute_check_lib_detected" = "xno"; then
     LIBS="${malamute_LIBS} ${LIBS}"
 fi
 
+was_biosproto_check_lib_detected=no
 
-was_libbiosproto_check_lib_detected=no
-
-PKG_CHECK_MODULES([libbiosproto], [biosproto >= 0.0.0],
+PKG_CHECK_MODULES([biosproto], [libbiosproto >= 0.0.0],
     [
     ],
     [
-        AC_ARG_WITH([biosproto],
+        AC_ARG_WITH([libbiosproto],
             [
-                AS_HELP_STRING([--with-biosproto],
-                [Specify biosproto prefix])
+                AS_HELP_STRING([--with-libbiosproto],
+                [Specify libbiosproto prefix])
             ],
-            [search_biosproto="yes"],
+            [search_libbiosproto="yes"],
             [])
 
-        libbiosproto_synthetic_cflags=""
-        libbiosproto_synthetic_libs="-lbiosproto"
+        biosproto_synthetic_cflags=""
+        biosproto_synthetic_libs="-lbiosproto"
 
-        if test "x$search_biosproto" = "xyes"; then
-            if test -r "${with_biosproto}/include/biosproto.h"; then
-                libbiosproto_synthetic_cflags="-I${with_biosproto}/include"
-                libbiosproto_synthetic_libs="-L${with_biosproto}/lib -lbiosproto"
+        if test "x$search_libbiosproto" = "xyes"; then
+            if test -r "${with_libbiosproto}/include/biosproto.h"; then
+                biosproto_synthetic_cflags="-I${with_libbiosproto}/include"
+                biosproto_synthetic_libs="-L${with_libbiosproto}/lib -lbiosproto"
             else
-                AC_MSG_ERROR([${with_biosproto}/include/biosproto.h not found. Please check biosproto prefix])
+                AC_MSG_ERROR([${with_libbiosproto}/include/biosproto.h not found. Please check libbiosproto prefix])
             fi
         fi
 
-        AC_CHECK_LIB([biosproto], [bios_proto_test],
+        AC_CHECK_LIB([libbiosproto], [bios_proto_test],
             [
-                CFLAGS="${libbiosproto_synthetic_cflags} ${CFLAGS}"
-                LDFLAGS="${libbiosproto_synthetic_libs} ${LDFLAGS}"
-                LIBS="${libbiosproto_synthetic_libs} ${LIBS}"
+                CFLAGS="${biosproto_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${biosproto_synthetic_libs} ${LDFLAGS}"
+                LIBS="${biosproto_synthetic_libs} ${LIBS}"
 
-                AC_SUBST([libbiosproto_CFLAGS],[${libbiosproto_synthetic_cflags}])
-                AC_SUBST([libbiosproto_LIBS],[${libbiosproto_synthetic_libs}])
-                was_libbiosproto_check_lib_detected=yes
+                AC_SUBST([biosproto_CFLAGS],[${biosproto_synthetic_cflags}])
+                AC_SUBST([biosproto_LIBS],[${biosproto_synthetic_libs}])
+                was_biosproto_check_lib_detected=yes
             ],
-            [AC_MSG_ERROR([cannot link with -lbiosproto, install biosproto.])])
+            [AC_MSG_ERROR([cannot link with -lbiosproto, install libbiosproto.])])
     ])
 
-if test "x$was_libbiosproto_check_lib_detected" = "xno"; then
-    CFLAGS="${libbiosproto_CFLAGS} ${CFLAGS}"
-    LIBS="${libbiosproto_LIBS} ${LIBS}"
+if test "x$was_biosproto_check_lib_detected" = "xno"; then
+    CFLAGS="${biosproto_CFLAGS} ${CFLAGS}"
+    LIBS="${biosproto_LIBS} ${LIBS}"
 fi
-
 
 CFLAGS="${PREVIOUS_CFLAGS}"
 LIBS="${PREVIOUS_LIBS}"
@@ -230,24 +347,38 @@ LIBS="${PREVIOUS_LIBS}"
 alerts_list_on_mingw32="no"
 alerts_list_on_cygwin="no"
 alerts_list_on_android="no"
+alerts_list_on_linux="no"
+alerts_list_on_gnu="no"
 
 # Host specific checks
 AC_CANONICAL_HOST
 
-# Determine whether or not documentation should be built and installed.
-alerts_list_build_doc="yes"
-alerts_list_install_man="yes"
+# Man pages are built/installed if asciidoc and xmlto are present
+#   --with-docs=no overrides this
+AC_ARG_WITH([docs],
+    AS_HELP_STRING([--with-docs],
+        [Build and install man pages [default=yes]]),
+    [with_docs=$withval])
 
-# Check for asciidoc and xmlto and don't build the docs if these are not installed.
-AC_CHECK_PROG(alerts_list_have_asciidoc, asciidoc, yes, no)
-AC_CHECK_PROG(alerts_list_have_xmlto, xmlto, yes, no)
-if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "xno"; then
+if test "x$with_docs" = "xno"; then
     alerts_list_build_doc="no"
-    # Tarballs built with 'make dist' ship with prebuilt documentation.
-    if ! test -f doc/alerts_list.7; then
-        alerts_list_install_man="no"
-        AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
-        AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])
+    alerts_list_install_man="no"
+else
+    # Determine whether or not documentation should be built and installed.
+    alerts_list_build_doc="yes"
+    alerts_list_install_man="yes"
+
+    # Check for asciidoc and xmlto and don't build the docs if these are not installed.
+    AC_CHECK_PROG(alerts_list_have_asciidoc, asciidoc, yes, no)
+    AC_CHECK_PROG(alerts_list_have_xmlto, xmlto, yes, no)
+    if test "x$alerts_list_have_asciidoc" = "xno" -o "x$alerts_list_have_xmlto" = "xno"; then
+        alerts_list_build_doc="no"
+        # Tarballs built with 'make dist' ship with prebuilt documentation.
+        if ! test -f doc/alerts_list.7; then
+            alerts_list_install_man="no"
+            AC_MSG_WARN([You are building an unreleased version of ALERTS-LIST and asciidoc or xmlto are not installed.])
+            AC_MSG_WARN([Documentation will not be built and manual pages will not be installed.])
+        fi
     fi
 fi
 AC_MSG_CHECKING([whether to build documentation])
@@ -264,6 +395,7 @@ case "${host_os}" in
         # Define on Linux to enable all library features
         CPPFLAGS="-D_GNU_SOURCE -DLINUX $CPPFLAGS"
         AC_DEFINE(ALERTS_LIST_HAVE_LINUX, 1, [Have Linux OS])
+        alerts_list_on_linux="yes"
 
         case "${host_os}" in
             *android*)
@@ -322,6 +454,14 @@ case "${host_os}" in
         AC_DEFINE(ALERTS_LIST_HAVE_CYGWIN, 1, [Have Cygwin])
         alerts_list_on_cygwin="yes"
         ;;
+    gnu*)
+        # Define on GNU/Hurd to enable all library features
+        if test "x$GXX" = "xyes"; then
+            CPPFLAGS="-D_GNU_SOURCE $CPPFLAGS"
+        fi
+        AC_DEFINE(ALERTS_LIST_HAVE_GNU, 1, [Have GNU/Hurd OS])
+        alerts_list_on_gnu="yes"
+        ;;
     *)
         AC_MSG_ERROR([unsupported system: ${host_os}.])
         ;;
@@ -360,28 +500,40 @@ AM_CONDITIONAL(ENABLE_SHARED, test "x$enable_shared" = "xyes")
 AM_CONDITIONAL(ON_MINGW, test "x$alerts_list_on_mingw32" = "xyes")
 AM_CONDITIONAL(ON_CYGWIN, test "x$alerts_list_on_cygwin" = "xyes")
 AM_CONDITIONAL(ON_ANDROID, test "x$alerts_list_on_android" = "xyes")
+AM_CONDITIONAL(ON_LINUX, test "x$alerts_list_on_linux" = "xyes")
+AM_CONDITIONAL(ON_GNU, test "x$alerts_list_on_gnu" = "xyes")
 AM_CONDITIONAL(INSTALL_MAN, test "x$alerts_list_install_man" = "xyes")
 AM_CONDITIONAL(BUILD_DOC, test "x$alerts_list_build_doc" = "xyes")
 
 # Check for agent-alerts-list intent
-AC_ARG_WITH([agent-alerts-list],
-    AS_HELP_STRING([--with-agent-alerts-list],
-        [Compile and install the agent-alerts-list program [default=yes].]),
-    [with_agent_alerts_list=$withval],
-    [with_agent_alerts_list=yes])
+AC_ARG_ENABLE([agent-alerts-list],
+    AS_HELP_STRING([--enable-agent-alerts-list],
+        [Compile and install 'agent-alerts-list' [default=yes].]),
+    [enable_agent_alerts_list=$enableval],
+    [enable_agent_alerts_list=yes])
 
-AM_CONDITIONAL([WITH_AGENT_ALERTS_LIST], [test x$with_agent_alerts_list != xno])
-AM_COND_IF([WITH_AGENT_ALERTS_LIST], [AC_MSG_NOTICE([WITH_AGENT_ALERTS_LIST defined])])
+AM_CONDITIONAL([ENABLE_AGENT_ALERTS_LIST], [test x$enable_agent_alerts_list != xno])
+AM_COND_IF([ENABLE_AGENT_ALERTS_LIST], [AC_MSG_NOTICE([ENABLE_AGENT_ALERTS_LIST defined])])
 
 # Check for generate_alert intent
-AC_ARG_WITH([generate_alert],
-    AS_HELP_STRING([--with-generate_alert],
-        [Compile and install the generate_alert program [default=yes].]),
-    [with_generate_alert=$withval],
-    [with_generate_alert=yes])
+AC_ARG_ENABLE([generate_alert],
+    AS_HELP_STRING([--enable-generate_alert],
+        [Compile and install 'generate_alert' [default=yes].]),
+    [enable_generate_alert=$enableval],
+    [enable_generate_alert=yes])
 
-AM_CONDITIONAL([WITH_GENERATE_ALERT], [test x$with_generate_alert != xno])
-AM_COND_IF([WITH_GENERATE_ALERT], [AC_MSG_NOTICE([WITH_GENERATE_ALERT defined])])
+AM_CONDITIONAL([ENABLE_GENERATE_ALERT], [test x$enable_generate_alert != xno])
+AM_COND_IF([ENABLE_GENERATE_ALERT], [AC_MSG_NOTICE([ENABLE_GENERATE_ALERT defined])])
+
+# Check for alerts_list_selftest intent
+AC_ARG_ENABLE([alerts_list_selftest],
+    AS_HELP_STRING([--enable-alerts_list_selftest],
+        [Compile 'alerts_list_selftest' in src [default=yes].]),
+    [enable_alerts_list_selftest=$enableval],
+    [enable_alerts_list_selftest=yes])
+
+AM_CONDITIONAL([ENABLE_ALERTS_LIST_SELFTEST], [test x$enable_alerts_list_selftest != xno])
+AM_COND_IF([ENABLE_ALERTS_LIST_SELFTEST], [AC_MSG_NOTICE([ENABLE_ALERTS_LIST_SELFTEST defined])])
 
 # Checks for library functions.
 AC_TYPE_SIGNAL
@@ -392,7 +544,6 @@ AC_ARG_WITH([pkgconfigdir], AS_HELP_STRING([--with-pkgconfigdir=PATH],
     [Path to the pkgconfig directory [[LIBDIR/pkgconfig]]]),
     [pkgconfigdir="$withval"], [pkgconfigdir='${libdir}/pkgconfig'])
 AC_SUBST([pkgconfigdir])
-
 
 
 # enable specific system integration features
@@ -408,6 +559,32 @@ AM_COND_IF([WITH_SYSTEMD],
     [PKG_CHECK_MODULES([SYSTEMD], [systemd >= 200], [],
         [AC_MSG_ERROR([Cannot find required package for systemd. Note, pkg-config is required due to specified version >= 200])])],
     [])
+
+if test "x$cross_compiling" = "xyes"; then
+    #   Enable draft by default when cross-compiling
+    gitmaster=yes
+else
+    # enable draft API by default if we're in a git repository
+    # else disable it by default; then allow --enable-drafts=yes/no override
+    AC_CHECK_FILE($srcdir/.git, [gitmaster=yes], [gitmaster=no])
+fi
+
+AC_ARG_ENABLE([drafts],
+    AS_HELP_STRING([--enable-drafts],
+        [Build and install draft classes and methods [default=yes.]]),
+    [enable_drafts=$enableval],
+    [enable_drafts=$gitmaster])
+
+AM_CONDITIONAL([ENABLE_DRAFTS], [test x$enable_drafts != xno])
+
+if test "x$enable_drafts" = "xyes"; then
+    AC_MSG_NOTICE([Building stable and legacy API + draft API])
+    AC_DEFINE(ALERTS_LIST_BUILD_DRAFT_API, 1, [Provide draft classes and methods.])
+    AC_SUBST(pkg_config_defines, "-DALERTS_LIST_BUILD_DRAFT_API=1")
+else
+    AC_MSG_NOTICE([Building stable and legacy API (no draft API)])
+    AC_SUBST(pkg_config_defines, "")
+fi
 
 # Specify output files
 AC_CONFIG_FILES([Makefile

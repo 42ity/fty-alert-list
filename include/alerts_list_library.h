@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts-list - ALERTS-LIST wrapper
+    alerts-list - generated layer of public API
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -34,10 +34,10 @@
 #include <malamute.h>
 #include <biosproto.h>
 
-//  ALERTS-LIST version macros for compile-time API detection
+//  ALERTS_LIST version macros for compile-time API detection
 
 #define ALERTS_LIST_VERSION_MAJOR 0
-#define ALERTS_LIST_VERSION_MINOR 6
+#define ALERTS_LIST_VERSION_MINOR 7
 #define ALERTS_LIST_VERSION_PATCH 0
 
 #define ALERTS_LIST_MAKE_VERSION(major, minor, patch) \
@@ -58,12 +58,18 @@
 #endif
 
 //  Opaque class structures to allow forward references
+//  These classes are stable or legacy and built in all releases
+//  Draft classes are by default not built stable releases
+#ifdef ALERTS_LIST_BUILD_DRAFT_API
 typedef struct _alerts_list_server_t alerts_list_server_t;
 #define ALERTS_LIST_SERVER_T_DEFINED
+#endif // ALERTS_LIST_BUILD_DRAFT_API
 
 
-//  Public API classes
+//  Public classes, each with its own header file
+#ifdef ALERTS_LIST_BUILD_DRAFT_API
 #include "alerts_list_server.h"
+#endif // ALERTS_LIST_BUILD_DRAFT_API
 
 #endif
 /*

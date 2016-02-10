@@ -19,7 +19,7 @@
 #
 
 Name:           alerts-list
-Version:        0.6.0
+Version:        0.7.0
 Release:        1
 Summary:        provides information about active alerts.
 License:        GPL-2.0+
@@ -30,10 +30,13 @@ BuildRequires:  automake
 BuildRequires:  autoconf
 BuildRequires:  libtool
 BuildRequires:  pkg-config
+BuildRequires:  systemd-devel
+BuildRequires:  libsodium-devel
 BuildRequires:  zeromq-devel
+BuildRequires:  uuid-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
-BuildRequires:  libbiosproto-devel
+BuildRequires:  biosproto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -59,10 +62,12 @@ This package contains shared library.
 Summary:        provides information about active alerts.
 Group:          System/Libraries
 Requires:       libalerts_list0 = %{version}
+Requires:       libsodium-devel
 Requires:       zeromq-devel
+Requires:       uuid-devel
 Requires:       czmq-devel
 Requires:       malamute-devel
-Requires:       libbiosproto-devel
+Requires:       biosproto-devel
 
 %description devel
 alerts-list provides information about active alerts..
@@ -79,7 +84,7 @@ This package contains development files.
 
 %build
 sh autogen.sh
-%{configure}
+%{configure} --with-systemd
 make %{_smp_mflags}
 
 %install
@@ -93,7 +98,6 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %defattr(-,root,root)
 %doc README.md
 %doc COPYING
-%{_bindir}/agent-alerts-list
 %{_bindir}/agent-alerts-list
 %{_bindir}/generate_alert
 %{_prefix}/lib/systemd/system/agent-alerts-list*.service
