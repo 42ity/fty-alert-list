@@ -59,8 +59,7 @@ alert_id_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
 }
 
 int
-alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
-    // TODO: it might be needed to parse action and compare the individual actions
+alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {    
     assert (alert1);
     assert (alert2);
     assert (bios_proto_id (alert1) == BIOS_PROTO_ALERT);
@@ -70,19 +69,33 @@ alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2) {
         bios_proto_rule (alert2) == NULL) {
         return 1;
     }
-
-    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) == 0 &&
-        str_eq (bios_proto_element_src (alert1), bios_proto_element_src (alert2)) &&
-        str_eq (bios_proto_state (alert1), bios_proto_state (alert2)) &&
-        str_eq (bios_proto_severity (alert1), bios_proto_severity (alert2)) &&
-        str_eq (bios_proto_description (alert1), bios_proto_description (alert2)) &&
-        str_eq (bios_proto_action (alert1), bios_proto_action (alert2)) &&
-        bios_proto_time (alert1) == bios_proto_time (alert2)) {
-        return 0;
-    }
-    else {
+ 
+    // rule 
+    if (strcasecmp (bios_proto_rule (alert1), bios_proto_rule (alert2)) != 0)
         return 1;
-    }
+    // element_src
+    if (!str_eq (bios_proto_element_src (alert1), bios_proto_element_src (alert2)))
+        return 1;
+    // state
+    if (!str_eq (bios_proto_state (alert1), bios_proto_state (alert2)))
+       return 1; 
+    // severity
+    if (!str_eq (bios_proto_severity (alert1), bios_proto_severity (alert2)))
+        return 1;
+    // description
+    if (!str_eq (bios_proto_description (alert1), bios_proto_description (alert2)))
+        return 1;
+    // time
+    if (bios_proto_time (alert1) != bios_proto_time (alert2))
+        return 1;
+    // action
+    // TODO: it might be needed to parse action and compare the individual actions
+    //       i.e "EMAIL|SMS" eq "SMS|EMAIL". For now, we don't recognize this and for
+    //       now it does not create a problem.
+    if (!str_eq (bios_proto_action (alert1), bios_proto_action (alert2)))
+        return 1;
+
+    return 0;
 }
 
 int

@@ -56,7 +56,6 @@ s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
                     bios_proto_set_severity (cursor, "%s", bios_proto_severity (alert));
                     bios_proto_set_description (cursor, "%s", bios_proto_description (alert));
                     bios_proto_set_action (cursor, "%s", bios_proto_action (alert));
-                    bios_proto_set_time (cursor, bios_proto_time (alert));
                 }
                 found = 1;
                 break;
@@ -196,8 +195,8 @@ alerts_list_server (zsock_t *pipe, void *args)
         }
     }
 
-    zpoller_destroy (&poller);
     mlm_client_destroy (&client);
+    zpoller_destroy (&poller);
     zlistx_destroy (&alerts);
 }
 
