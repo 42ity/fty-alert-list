@@ -1,0 +1,75 @@
+#
+#    alerts-list - Provides information about active alerts.
+#
+#    Copyright (C) 2014 - 2015 Eaton                                        
+#                                                                           
+#    This program is free software; you can redistribute it and/or modify   
+#    it under the terms of the GNU General Public License as published by   
+#    the Free Software Foundation; either version 2 of the License, or      
+#    (at your option) any later version.                                    
+#                                                                           
+#    This program is distributed in the hope that it will be useful,        
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of         
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          
+#    GNU General Public License for more details.                           
+#                                                                           
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
+
+Source:         alerts-list
+Section:        net
+Priority:       optional
+Maintainer:     John Doe <John.Doe@example.com>
+Uploaders:      John Doe <John.Doe@example.com>
+Standards-Version: 3.9.5
+Build-Depends: bison, debhelper (>= 8),
+    pkg-config,
+    automake,
+    autoconf,
+    libtool,
+    libsodium-dev,
+    libzmq4-dev,
+    libuuid-dev,
+    libczmq-dev,
+    libmlm-dev,
+    libbiosproto-dev,
+    dh-autoreconf,
+    systemd
+
+Package: libalerts-list0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: alerts-list
+ This package contains shared library for alerts-list: provides information about active alerts.
+
+Package: alerts-list-dev
+Architecture: all
+Section: libdevel
+Depends:
+    libsodium-dev,
+    libzmq4-dev,
+    libuuid-dev,
+    libczmq-dev,
+    libmlm-dev,
+    libbiosproto-dev,
+    libalerts-list0 (= ${binary:Version})
+Description: development files for alerts-list
+ This package contains development files for alerts-list: provides information about active alerts.
+
+Package: alerts-list
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: provides information about active alerts.
+ Main package for alerts-list: provides information about active alerts.
+
+Package: alerts-list-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends:
+    alerts-list (= ${binary:Version}),
+    ${misc:Depends}
+Description: debugging symbols for alerts-list
+ This package contains the debugging symbols for alerts-list : provides information about active alerts..
+
