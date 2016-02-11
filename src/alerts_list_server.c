@@ -56,7 +56,6 @@ s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
                     bios_proto_set_severity (cursor, "%s", bios_proto_severity (alert));
                     bios_proto_set_description (cursor, "%s", bios_proto_description (alert));
                     bios_proto_set_action (cursor, "%s", bios_proto_action (alert));
-                    bios_proto_set_time (cursor, bios_proto_time (alert));
                 }
                 found = 1;
                 break;
@@ -196,8 +195,8 @@ alerts_list_server (zsock_t *pipe, void *args)
         }
     }
 
-    zpoller_destroy (&poller);
     mlm_client_destroy (&client);
+    zpoller_destroy (&poller);
     zlistx_destroy (&alerts);
 }
 
@@ -329,7 +328,9 @@ test_alert_copy (bios_proto_t *to, bios_proto_t *from) {
     bios_proto_set_severity (to, bios_proto_severity (from));
     bios_proto_set_description (to, bios_proto_description (from));
     bios_proto_set_action (to, bios_proto_action (from));
-    bios_proto_set_time (to, bios_proto_time (from));
+    // Don't copy time or the copied time will be expected
+    // bussines requirement is that active alert pertains 
+    // timestamp of when it was first published
 }
 
 static void
@@ -359,7 +360,6 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
     assert (rv == 0);
     zclock_sleep (500);
 }
-
 
 void
 alerts_list_server_test (bool verbose)
