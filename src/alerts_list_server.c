@@ -328,7 +328,9 @@ test_alert_copy (bios_proto_t *to, bios_proto_t *from) {
     bios_proto_set_severity (to, bios_proto_severity (from));
     bios_proto_set_description (to, bios_proto_description (from));
     bios_proto_set_action (to, bios_proto_action (from));
-    bios_proto_set_time (to, bios_proto_time (from));
+    // Don't copy time or the copied time will be expected
+    // bussines requirement is that active alert pertains 
+    // timestamp of when it was first published
 }
 
 static void
@@ -358,7 +360,6 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
     assert (rv == 0);
     zclock_sleep (500);
 }
-
 
 void
 alerts_list_server_test (bool verbose)
