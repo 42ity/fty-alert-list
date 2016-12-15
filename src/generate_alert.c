@@ -20,7 +20,7 @@
 */
 
 #include <czmq.h>
-#include "../include/alerts_list.h"
+#include "../include/fty_alert_list.h"
 
 int main (int argc, char **argv) {
     char *endpoint = NULL;
@@ -59,7 +59,7 @@ int main (int argc, char **argv) {
     free (strtemp); strtemp = NULL;
     mlm_client_set_producer (client, "ALERTS");
 
-    zmsg_t *alert_message = bios_proto_encode_alert (
+    zmsg_t *alert_message = fty_proto_encode_alert (
             NULL,
             argv[1],
             argv[2],
@@ -69,7 +69,7 @@ int main (int argc, char **argv) {
             unixtime,
             argv[7]);
     if (!alert_message) {
-        zsys_error ("bios_proto_encode_alert() failed");
+        zsys_error ("fty_proto_encode_alert() failed");
         free (endpoint); endpoint = NULL;
         mlm_client_destroy (&client);
         return EXIT_FAILURE;

@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts_list_server - Providing information about active alerts
+    fty_alert_list_server - Providing information about active alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -19,8 +19,8 @@
     =========================================================================
 */
 
-#ifndef ALERTS_LIST_SERVER_H_INCLUDED
-#define ALERTS_LIST_SERVER_H_INCLUDED
+#ifndef FTY_ALERT_LIST_SERVER_H_INCLUDED
+#define FTY_ALERT_LIST_SERVER_H_INCLUDED
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,11 +29,11 @@ extern "C" {
 //  @interface
 
 //  zactor ready fnction
-ALERTS_LIST_EXPORT void
-    alerts_list_server (zsock_t *pipe, void *args);
+FTY_ALERT_LIST_EXPORT void
+    fty_alert_list_server (zsock_t *pipe, void *args);
 
-ALERTS_LIST_EXPORT void
-    alerts_list_server_test (bool verbose);
+FTY_ALERT_LIST_EXPORT void
+    fty_alert_list_server_test (bool verbose);
 //  @end
 
 #ifdef __cplusplus

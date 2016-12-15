@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts_list - Provides information about active alerts.
+    fty-alert-list - Provides information about active alerts.
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -19,11 +19,11 @@
     =========================================================================
 */
 
-#ifndef ALERTS_LIST_H_INCLUDED
-#define ALERTS_LIST_H_INCLUDED
+#ifndef FTY_ALERT_LIST_H_H_INCLUDED
+#define FTY_ALERT_LIST_H_H_INCLUDED
 
 //  Include the project library file
-#include "alerts_list_library.h"
+#include "fty_alert_list_library.h"
 
 //  Add your own public definitions here, if you need them
 

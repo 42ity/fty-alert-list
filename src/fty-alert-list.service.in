@@ -1,5 +1,5 @@
 [Unit]
-Description=agent-alerts-list service
+Description=fty-alert-list service
 Requires=malamute.target
 After=malamute.target
 PartOf=bios.target
@@ -12,7 +12,7 @@ EnvironmentFile=-/etc/sysconfig/bios
 EnvironmentFile=-/etc/default/bios__%n.conf
 EnvironmentFile=-/etc/sysconfig/bios__%n.conf
 Environment="prefix=@prefix@"
-ExecStart=@prefix@/bin/agent-alerts-list
+ExecStart=@prefix@/bin/fty-alert-list 
 
 [Install]
 WantedBy=bios.target

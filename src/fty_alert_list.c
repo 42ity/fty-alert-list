@@ -1,5 +1,5 @@
 /*  =========================================================================
-    agent_alerts_list - Agent providing information about active alerts
+    fty_alert_list - description
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -21,12 +21,12 @@
 
 /*
 @header
-    agent_alerts_list - Agent providing information about active alerts
+    fty_alert_list -
 @discuss
 @end
 */
 
-#include "alerts_list_classes.h"
+#include "fty_alert_list_classes.h"
 
 int main (int argc, char *argv [])
 {
@@ -35,7 +35,7 @@ int main (int argc, char *argv [])
     for (argn = 1; argn < argc; argn++) {
         if (streq (argv [argn], "--help") ||
             streq (argv [argn], "-h")) {
-            puts ("agent-alerts-list [options] ...");
+            puts ("fty-alert-list [options] ...");
             puts ("  --verbose / -v         verbose test output");
             puts ("  --help / -h            this information");
             return 0;
@@ -51,15 +51,15 @@ int main (int argc, char *argv [])
     }
     //  Insert main code here
     if (verbose)
-        zsys_info ("agent_alerts_list - Agent providing information about active alerts"); // TODO: rewite alerts_list_server to accept VERBOSE
+        zsys_info ("fty-alert-list - Agent providing information about active alerts"); // TODO: rewite alerts_list_server to accept VERBOSE
 
-    zsys_info ("alerts-list starting");
+    zsys_info ("fty-alert-list starting");
     const char *endpoint = "ipc://@/malamute";
-    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
+    zactor_t *alert_list_server = zactor_new (fty_alert_list_server, (void *) endpoint);
     // 
     while (!zsys_interrupted) {
         sleep (1000);
     }
-    zactor_destroy (&bios_al_server);
+    zactor_destroy (&alert_list_server);
     return EXIT_SUCCESS;
 }

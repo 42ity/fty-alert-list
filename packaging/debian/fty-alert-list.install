@@ -1,0 +1,7 @@
+usr/bin/fty-alert-list
+usr/share/man/man1/fty-alert-list.1
+usr/bin/generate_alert
+usr/share/man/man1/generate_alert.1
+etc/fty-alert-list/fty-alert-list.cfg
+lib/systemd/system/fty-alert-list.service
+

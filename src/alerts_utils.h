@@ -28,26 +28,26 @@ extern "C" {
 
 // czmq_comparator of two alert's identifiers; alert is identified by pair (name, element)
 // 0 - same, 1 - different
-ALERTS_LIST_EXPORT int
-    alert_id_comparator (bios_proto_t *alert1, bios_proto_t *alert2);
+FTY_ALERT_LIST_EXPORT int
+    alert_id_comparator (fty_proto_t *alert1, fty_proto_t *alert2);
 
 // czmq_comparator of two alerts
 // 0 - same, 1 - different
-ALERTS_LIST_EXPORT int
-    alert_comparator (bios_proto_t *alert1, bios_proto_t *alert2);
+FTY_ALERT_LIST_EXPORT int
+    alert_comparator (fty_proto_t *alert1, fty_proto_t *alert2);
 
 // does 'state' represent valid alert state?
 // 1 - valid alert state, 0 - NOT valid alert state
-ALERTS_LIST_EXPORT int
+FTY_ALERT_LIST_EXPORT int
     is_alertstate (const char *state);
 
 // null-safe streq; returns true for two NULLs as well
 // 1 - equal, 0 - NOT equal
-ALERTS_LIST_EXPORT int
+FTY_ALERT_LIST_EXPORT int
     str_eq (const char *s1, const char *s2);
 
 //  Self test of this class
-ALERTS_LIST_EXPORT void
+FTY_ALERT_LIST_EXPORT void
     alerts_utils_test (bool verbose);
 
 //  @end

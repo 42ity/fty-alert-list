@@ -1,5 +1,5 @@
 /*  =========================================================================
-    alerts_list_server - Providing information about active and resolved alerts
+    fty_alert_list_server - Providing information about active alerts
 
     Copyright (C) 2014 - 2015 Eaton                                        
                                                                            
@@ -21,12 +21,12 @@
 
 /*
 @header
-    alerts_list_server - Providing information about active and resolved alerts
+    fty_alert_list_server - Providing information about active alerts
 @discuss
 @end
 */
 #include <string.h>
-#include "alerts_list_classes.h"
+#include "fty_alert_list_classes.h"
 
 #define RFC_ALERTS_LIST_SUBJECT "rfc-alerts-list"
 
@@ -34,42 +34,42 @@ static void
 s_handle_stream_deliver (zmsg_t** msg_p, zlistx_t *alerts) {
     assert (msg_p);
     zmsg_t *msg = *msg_p;
-    bios_proto_t *alert = bios_proto_decode (&msg);
-    if (!alert || bios_proto_id (alert) != BIOS_PROTO_ALERT) {
-        zsys_warning ("s_handle_stream_deliver (): Message not BIOS_PROTO_ALERT.");
+    fty_proto_t *alert = fty_proto_decode (&msg);
+    if (!alert || fty_proto_id (alert) != FTY_PROTO_ALERT) {
+        zsys_warning ("s_handle_stream_deliver (): Message not FTY_PROTO_ALERT.");
         return;
     }
 
-    if (bios_proto_time (alert) == -1)
-        bios_proto_set_time (alert, time (NULL));
+    if (fty_proto_time (alert) == -1)
+        fty_proto_set_time (alert, time (NULL));
 
-    bios_proto_t *cursor = (bios_proto_t *) zlistx_first (alerts);
+    fty_proto_t *cursor = (fty_proto_t *) zlistx_first (alerts);
     if (cursor) {
         int found = 0;
         while (cursor) {
             if (alert_id_comparator (cursor, alert) == 0) {
-                if (str_eq (bios_proto_state (alert), "RESOLVED")) {
+                if (str_eq (fty_proto_state (alert), "RESOLVED")) {
                     zlistx_delete (alerts, zlistx_cursor (alerts));
                 }
                 else {
-                    bios_proto_set_state (cursor, "%s", bios_proto_state (alert));
-                    bios_proto_set_severity (cursor, "%s", bios_proto_severity (alert));
-                    bios_proto_set_description (cursor, "%s", bios_proto_description (alert));
-                    bios_proto_set_action (cursor, "%s", bios_proto_action (alert));
+                    fty_proto_set_state (cursor, "%s", fty_proto_state (alert));
+                    fty_proto_set_severity (cursor, "%s", fty_proto_severity (alert));
+                    fty_proto_set_description (cursor, "%s", fty_proto_description (alert));
+                    fty_proto_set_action (cursor, "%s", fty_proto_action (alert));
                 }
                 found = 1;
                 break;
             }
-            cursor = (bios_proto_t *) zlistx_next (alerts);
+            cursor = (fty_proto_t *) zlistx_next (alerts);
         }
         if (!found) {        
             zlistx_add_end (alerts, alert);
         }
     }
-    else if (!str_eq (bios_proto_state (alert), "RESOLVED")) {
+    else if (!str_eq (fty_proto_state (alert), "RESOLVED")) {
         zlistx_add_end (alerts, alert);
     }
-    bios_proto_destroy (&alert);
+    fty_proto_destroy (&alert);
 }
 
 static void
@@ -113,19 +113,19 @@ s_handle_rfc_alerts_list (mlm_client_t *client, zmsg_t **msg_p, zlistx_t *alerts
     zmsg_t *reply = zmsg_new ();
     zmsg_addstr (reply, "LIST");
     zmsg_addstr (reply, state);
-    bios_proto_t *cursor = (bios_proto_t *) zlistx_first (alerts);
+    fty_proto_t *cursor = (fty_proto_t *) zlistx_first (alerts);
     while (cursor) {
-        if (str_eq (state, "ALL") || str_eq (state, bios_proto_state (cursor))) {
+        if (str_eq (state, "ALL") || str_eq (state, fty_proto_state (cursor))) {
             byte *buffer = NULL;
-            bios_proto_t *duplicate = bios_proto_dup (cursor);
-            zmsg_t *result = bios_proto_encode (&duplicate);
+            fty_proto_t *duplicate = fty_proto_dup (cursor);
+            zmsg_t *result = fty_proto_encode (&duplicate);
             size_t nbytes = zmsg_encode (result, &buffer);
             zframe_t *frame = zframe_new ((void *) buffer, nbytes);
             zmsg_destroy (&result);
             free (buffer); buffer = NULL;
             zmsg_append (reply, &frame);
         }
-        cursor = (bios_proto_t *) zlistx_next (alerts);
+        cursor = (fty_proto_t *) zlistx_next (alerts);
     }
     if (mlm_client_sendto (client, mlm_client_sender (client), RFC_ALERTS_LIST_SUBJECT, NULL, 5000, &reply) != 0) {
         zsys_error ("mlm_client_sendto (sender = '%s', subject = '%s', timeout = '5000') failed.",
@@ -150,14 +150,14 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts
 }
 
 void
-alerts_list_server (zsock_t *pipe, void *args)
+fty_alert_list_server (zsock_t *pipe, void *args)
 {
     const char *endpoint = (const char *) args;
     zsys_debug ("endpoint = %s", endpoint);
 //    static const char* endpoint = "inproc://bios-lm-server-test";
     zlistx_t *alerts = zlistx_new ();
-    zlistx_set_destructor (alerts, (czmq_destructor *) bios_proto_destroy);
-    zlistx_set_duplicator (alerts, (czmq_duplicator *) bios_proto_dup);
+    zlistx_set_destructor (alerts, (czmq_destructor *) fty_proto_destroy);
+    zlistx_set_duplicator (alerts, (czmq_duplicator *) fty_proto_dup);
 
     mlm_client_t *client = mlm_client_new ();
     mlm_client_connect (client, endpoint, 1000, "ALERTS-LIST");
@@ -231,15 +231,15 @@ test_zlistx_same (const char *state, zlistx_t *expected, zlistx_t *received) {
     assert (state);
     assert (expected);
     assert (received);
-    bios_proto_t *cursor = (bios_proto_t *) zlistx_first (expected);
+    fty_proto_t *cursor = (fty_proto_t *) zlistx_first (expected);
     while (cursor) {
-        if (str_eq (state, "ALL") || str_eq (state, bios_proto_state (cursor))) {
+        if (str_eq (state, "ALL") || str_eq (state, fty_proto_state (cursor))) {
             void *handle = zlistx_find (received, cursor);
             if (!handle)
                 return 0;
             zlistx_delete (received, handle);
         }
-        cursor = (bios_proto_t *) zlistx_next (expected);
+        cursor = (fty_proto_t *) zlistx_next (expected);
     }
     if (zlistx_size (received) != 0)
         return 0;
@@ -263,19 +263,19 @@ test_check_result (const char *state, zlistx_t *expected, zmsg_t **reply_p, int 
     free (part); part = NULL;
 
     zlistx_t *received = zlistx_new ();
-    zlistx_set_destructor (received, (czmq_destructor *) bios_proto_destroy);
-    zlistx_set_duplicator (received, (czmq_duplicator *) bios_proto_dup);
+    zlistx_set_destructor (received, (czmq_destructor *) fty_proto_destroy);
+    zlistx_set_duplicator (received, (czmq_duplicator *) fty_proto_dup);
     zlistx_set_comparator (received, (czmq_comparator *) alert_comparator);
     zframe_t *frame = zmsg_pop (reply);
     while (frame) {
         zmsg_t *decoded_zmsg = zmsg_decode (zframe_data (frame), zframe_size (frame));
         zframe_destroy (&frame);
         assert (decoded_zmsg);
-        bios_proto_t *decoded = bios_proto_decode (&decoded_zmsg);
+        fty_proto_t *decoded = fty_proto_decode (&decoded_zmsg);
         assert (decoded);
-        assert (bios_proto_id (decoded) == BIOS_PROTO_ALERT);
+        assert (fty_proto_id (decoded) == FTY_PROTO_ALERT);
         zlistx_add_end (received, decoded);
-        bios_proto_destroy (&decoded);
+        fty_proto_destroy (&decoded);
         frame = zmsg_pop (reply);        
     }
 
@@ -291,7 +291,7 @@ test_check_result (const char *state, zlistx_t *expected, zmsg_t **reply_p, int 
     zmsg_destroy (reply_p); 
 }
 
-static bios_proto_t *
+static fty_proto_t *
 test_alert_new (const char *rule,
                 const char *element,
                 const char *state,
@@ -300,41 +300,41 @@ test_alert_new (const char *rule,
                 int64_t timestamp,
                 const char *action
                 ) {
-    bios_proto_t *alert = bios_proto_new (BIOS_PROTO_ALERT);
+    fty_proto_t *alert = fty_proto_new (FTY_PROTO_ALERT);
     assert (alert);
-    bios_proto_set_rule (alert, rule);
-    bios_proto_set_element_src (alert, element);
-    bios_proto_set_state (alert, state);
-    bios_proto_set_severity (alert, severity);
-    bios_proto_set_description (alert, description);
-    bios_proto_set_action (alert, action);
+    fty_proto_set_rule (alert, rule);
+    fty_proto_set_element_src (alert, element);
+    fty_proto_set_state (alert, state);
+    fty_proto_set_severity (alert, severity);
+    fty_proto_set_description (alert, description);
+    fty_proto_set_action (alert, action);
     if (timestamp < 0)
-        bios_proto_set_time (alert, time (NULL));
+        fty_proto_set_time (alert, time (NULL));
     else
-        bios_proto_set_time (alert, timestamp);
+        fty_proto_set_time (alert, timestamp);
     return alert;
 }
 
 static void
-test_alert_copy (bios_proto_t *to, bios_proto_t *from) {
+test_alert_copy (fty_proto_t *to, fty_proto_t *from) {
     assert (to);
     assert (from);
-    bios_proto_set_id (to, BIOS_PROTO_ALERT);
-    assert (bios_proto_id (from) == BIOS_PROTO_ALERT);
+    fty_proto_set_id (to, FTY_PROTO_ALERT);
+    assert (fty_proto_id (from) == FTY_PROTO_ALERT);
 
-    bios_proto_set_rule (to, bios_proto_rule (from));
-    bios_proto_set_element_src (to, bios_proto_element_src (from));
-    bios_proto_set_state (to, bios_proto_state (from));
-    bios_proto_set_severity (to, bios_proto_severity (from));
-    bios_proto_set_description (to, bios_proto_description (from));
-    bios_proto_set_action (to, bios_proto_action (from));
+    fty_proto_set_rule (to, fty_proto_rule (from));
+    fty_proto_set_element_src (to, fty_proto_element_src (from));
+    fty_proto_set_state (to, fty_proto_state (from));
+    fty_proto_set_severity (to, fty_proto_severity (from));
+    fty_proto_set_description (to, fty_proto_description (from));
+    fty_proto_set_action (to, fty_proto_action (from));
     // Don't copy time or the copied time will be expected
     // bussines requirement is that active alert pertains 
     // timestamp of when it was first published
 }
 
 static void
-test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t **message) {
+test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, fty_proto_t **message) {
     assert (message);
     assert (*message);
     assert (alerts);
@@ -342,8 +342,8 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
 
     void *handle = zlistx_find (alerts, (void *) *message);
     if (handle) {
-        bios_proto_t *item = (bios_proto_t *) zlistx_handle_item (handle);
-        if (str_eq (bios_proto_state (*message), "RESOLVED")) {
+        fty_proto_t *item = (fty_proto_t *) zlistx_handle_item (handle);
+        if (str_eq (fty_proto_state (*message), "RESOLVED")) {
             zlistx_delete (alerts, handle);
         }
         else {
@@ -354,7 +354,7 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
         zlistx_add_end (alerts, *message);
     }
 
-    zmsg_t *zmessage = bios_proto_encode (message);
+    zmsg_t *zmessage = fty_proto_encode (message);
     assert (zmessage);
     int rv = mlm_client_send (alert_producer, "Nobody here cares about this.", &zmessage);
     assert (rv == 0);
@@ -362,7 +362,7 @@ test_alert_publish (mlm_client_t *alert_producer, zlistx_t *alerts, bios_proto_t
 }
 
 void
-alerts_list_server_test (bool verbose)
+fty_alert_list_server_test (bool verbose)
 {
 
     static const char* endpoint = "inproc://bios-lm-server-test";
@@ -385,12 +385,12 @@ alerts_list_server_test (bool verbose)
     mlm_client_set_producer (ap_client, "ALERTS");
 
     // Alert List
-    zactor_t *bios_al_server = zactor_new (alerts_list_server, (void *) endpoint);
+    zactor_t *bios_al_server = zactor_new (fty_alert_list_server, (void *) endpoint);
 
     // maintain a list of active alerts (that serves as "expected results")
     zlistx_t *alerts = zlistx_new ();
-    zlistx_set_destructor (alerts, (czmq_destructor *) bios_proto_destroy);
-    zlistx_set_duplicator (alerts, (czmq_duplicator *) bios_proto_dup);
+    zlistx_set_destructor (alerts, (czmq_destructor *) fty_proto_destroy);
+    zlistx_set_duplicator (alerts, (czmq_duplicator *) fty_proto_dup);
     zlistx_set_comparator (alerts, (czmq_comparator *) alert_id_comparator);
 
     zmsg_t *reply = test_request_alerts_list (ui_client, "ALL");
@@ -404,7 +404,7 @@ alerts_list_server_test (bool verbose)
     test_check_result ("ACK-IGNORE", alerts, &reply, 0);
 
     // add new alert
-    bios_proto_t *alert = test_alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS");
+    fty_proto_t *alert = test_alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS");
     test_alert_publish (ap_client, alerts, &alert);
     reply = test_request_alerts_list (ui_client, "ALL");
     test_check_result ("ALL", alerts, &reply, 0);
@@ -479,7 +479,7 @@ alerts_list_server_test (bool verbose)
     // and EXPECT A FAILURE (i.e. expected list != received list)
     //
     // IMPORTANT: After this line, don't use automated test_check_result () function - it will fail
-    zmsg_t *alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACTIVE", "high", "description", 11, "EMAIL|SMS");
+    zmsg_t *alert_bypass = fty_proto_encode_alert (NULL, "Pattern", "rack", "ACTIVE", "high", "description", 11, "EMAIL|SMS");
     mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
     zclock_sleep (500);
 
@@ -489,7 +489,7 @@ alerts_list_server_test (bool verbose)
     reply = test_request_alerts_list (ui_client, "ACTIVE");
     test_check_result ("ACTIVE", alerts, &reply, 1);
 
-    alert_bypass = bios_proto_encode_alert (NULL, "Pattern", "rack", "ACK-WIP", "high", "description", 12, "EMAIL|SMS");
+    alert_bypass = fty_proto_encode_alert (NULL, "Pattern", "rack", "ACK-WIP", "high", "description", 12, "EMAIL|SMS");
     mlm_client_send (ap_client, "Nobody cares", &alert_bypass);
     zclock_sleep (500);
 
