@@ -1,21 +1,21 @@
 #
 #    fty-alert-list - Provides information about active alerts
 #
-#    Copyright (C) 2014 - 2017 Eaton                                        
-#                                                                           
-#    This program is free software; you can redistribute it and/or modify   
-#    it under the terms of the GNU General Public License as published by   
-#    the Free Software Foundation; either version 2 of the License, or      
-#    (at your option) any later version.                                    
-#                                                                           
-#    This program is distributed in the hope that it will be useful,        
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of         
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          
-#    GNU General Public License for more details.                           
-#                                                                           
+#    Copyright (C) 2014 - 2017 Eaton
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
 #    You should have received a copy of the GNU General Public License along
 #    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 # To build with draft APIs, use "--with drafts" in rpmbuild for local builds or add
@@ -28,6 +28,7 @@
 %else
 %define DRAFTS no
 %endif
+%define SYSTEMD_UNIT_DIR %(pkg-config --variable=systemdsystemunitdir systemd)
 Name:           fty-alert-list
 Version:        1.0.0
 Release:        1
@@ -49,6 +50,7 @@ BuildRequires:  systemd-devel
 BuildRequires:  systemd
 %{?systemd_requires}
 BuildRequires:  xmlto
+BuildRequires:  libsodium-devel
 BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
@@ -77,6 +79,7 @@ This package contains shared library for fty-alert-list: provides information ab
 Summary:        provides information about active alerts
 Group:          System/Libraries
 Requires:       libfty_alert_list0 = %{version}
+Requires:       libsodium-devel
 Requires:       zeromq-devel
 Requires:       czmq-devel
 Requires:       malamute-devel
@@ -95,6 +98,7 @@ This package contains development files for fty-alert-list: provides information
 %{_mandir}/man7/*
 
 %prep
+
 %setup -q
 
 %build
@@ -119,7 +123,7 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %{_mandir}/man1/generate_alert*
 %{_bindir}/fty-alert-list-convert
 %{_mandir}/man1/fty-alert-list-convert*
-/usr/lib/systemd/system/fty-alert-list.service
+%{SYSTEMD_UNIT_DIR}/fty-alert-list.service
 %dir %{_sysconfdir}/fty-alert-list
 %if 0%{?suse_version} > 1315
 %post

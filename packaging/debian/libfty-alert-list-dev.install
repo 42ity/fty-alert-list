@@ -1,5 +1,3 @@
 usr/include/*
 usr/lib/*/libfty_alert_list.so
 usr/lib/*/pkgconfig/libfty_alert_list.pc
-usr/share/man/man3/*
-usr/share/man/man7/*

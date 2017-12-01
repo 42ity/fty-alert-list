@@ -81,7 +81,7 @@ fty-alert-list-convert.txt: $(top_srcdir)/src/fty_alert_list_convert.c
 	"$(srcdir)/mkman" "fty_alert_list_convert" "$(builddir)/fty-alert-list-convert.txt" "$(srcdir)/.."
 
 
-clean:
+clean-local:
 	rm -f *.1 *.3 *.7 $(GENERATED_DOCS)
 
 doc: $(GENERATED_DOCS)
