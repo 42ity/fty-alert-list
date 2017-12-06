@@ -45,7 +45,7 @@ FTY_ALERT_LIST_EXPORT fty_proto_t*
                const char *severity,
                const char *description,
                uint64_t timestamp,
-               const char *action,
+               zlist_t **action,
                int64_t ttl);
 // compare utf8 strings for equality
 // ignore case on ascii (i.e on 1 byte chars)

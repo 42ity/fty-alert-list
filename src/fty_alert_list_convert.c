@@ -121,8 +121,20 @@ convert_file (const char *file_name, const char *old_path, const char *new_path)
         fty_proto_set_state (falert, "%s", bios_proto_state (balert));
         fty_proto_set_severity (falert, "%s", bios_proto_severity (balert));
         fty_proto_set_description (falert, "%s", bios_proto_description (balert));
-        fty_proto_set_action (falert, "%s", bios_proto_action (balert));
+        zlist_t *actions = zlist_new ();
+        zlist_autofree(actions);
+        if (NULL != bios_proto_action (balert)) {
+            char *old_actions = strdup (bios_proto_action (balert));
+            char *single_action = strtok(old_actions, "/|\\");
+            while (NULL != single_action) {
+                zlist_append(actions, single_action);
+                single_action = strtok(NULL, "/|\\");
+            }
+        }
+        fty_proto_set_action (falert, &actions);
 
+        if (NULL != actions)
+            zlist_destroy (&actions);
         bios_proto_destroy (&balert);
 
         // --- save the data----

@@ -66,6 +66,9 @@ int main (int argc, char **argv) {
     free (strtemp); strtemp = NULL;
     mlm_client_set_producer (client, "ALERTS");
 
+    zlist_t *actions = zlist_new ();
+    zlist_autofree (actions);
+    zlist_append (actions, argv[7]);
     zmsg_t *alert_message = fty_proto_encode_alert (
             NULL,
             unixtime, 
@@ -75,11 +78,12 @@ int main (int argc, char **argv) {
             argv[3],
             argv[4],
             argv[5],
-            argv[7]);
+            actions);
     if (!alert_message) {
         zsys_error ("fty_proto_encode_alert() failed");
         free (endpoint); endpoint = NULL;
         mlm_client_destroy (&client);
+        zlist_destroy (&actions);
         return EXIT_FAILURE;
     }
 
@@ -89,6 +93,7 @@ int main (int argc, char **argv) {
         zsys_error ("asprintf() failed");
         free (endpoint); endpoint = NULL;
         mlm_client_destroy (&client);
+        zlist_destroy (&actions);
         return EXIT_FAILURE;
     }   
     rv = mlm_client_send (client, strtemp, &alert_message);
@@ -97,9 +102,11 @@ int main (int argc, char **argv) {
         zsys_error ("mlm_client_send () failed");
         free (endpoint); endpoint = NULL;
         mlm_client_destroy (&client);
+        zlist_destroy (&actions);
         return EXIT_FAILURE;
     }
     free (endpoint); endpoint = NULL;
     mlm_client_destroy (&client);
+    zlist_destroy (&actions);
     return EXIT_SUCCESS;
 }

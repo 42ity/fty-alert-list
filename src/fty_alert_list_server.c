@@ -138,7 +138,14 @@ s_handle_stream_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts,
     else {
         fty_proto_set_severity (cursor, "%s", fty_proto_severity (alert));
         fty_proto_set_description (cursor, "%s", fty_proto_description (alert));
-        fty_proto_set_action (cursor, "%s", fty_proto_action (alert));
+        zlist_t *actions;
+        if (NULL == fty_proto_action (alert)) {
+            actions = zlist_new ();
+            zlist_autofree (actions);
+        } else {
+            actions = zlist_dup (fty_proto_action (alert));
+        }
+        fty_proto_set_action (cursor, &actions);
 
         // Wasn't specified, but common sense applied, it should be:
         // RESOLVED comes from _ALERTS_SYS
@@ -166,8 +173,9 @@ s_handle_stream_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts,
             }
         }
     }
-
-    zmsg_t *encoded = fty_proto_encode (&alert);
+    
+    fty_proto_t *alert_dup = fty_proto_dup (alert);
+    zmsg_t *encoded = fty_proto_encode (&alert_dup);
     assert (encoded);
 
     int rv = mlm_client_send (client, mlm_client_subject (client), &encoded);
@@ -176,6 +184,7 @@ s_handle_stream_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts,
                 mlm_client_subject (client));
         zmsg_destroy (&encoded);
     }
+    fty_proto_destroy (&alert);
 }
 
 static void
@@ -490,15 +499,28 @@ test_print_zlistx (zlistx_t *list) {
     assert (list);
     fty_proto_t *cursor = (fty_proto_t *) zlistx_first (list);
     while (cursor) {
-        zsys_debug ("| %-15s %-15s %-15s %-12s  %-12" PRIu64" %s  %s  %s",
+        zsys_debug ("| %-15s %-15s %-15s %-12s  %-12" PRIu64" count:%zu  %s  %s",
                 fty_proto_rule (cursor),
                 fty_proto_aux_string (cursor, FTY_PROTO_RULE_CLASS, ""),
                 fty_proto_name (cursor),
                 fty_proto_state (cursor),
                 fty_proto_time (cursor),
-                fty_proto_action (cursor),
+                zlist_size (fty_proto_action (cursor)),
                 fty_proto_severity (cursor),
                 fty_proto_description (cursor));
+        const char *actions = fty_proto_action_first(cursor);
+        while (NULL != actions) {
+            zsys_debug ("| %-15s %-15s %-15s %-12s  %-12" PRIu64" %s  %s  %s",
+                    fty_proto_rule (cursor),
+                    fty_proto_aux_string (cursor, FTY_PROTO_RULE_CLASS, ""),
+                    fty_proto_name (cursor),
+                    fty_proto_state (cursor),
+                    fty_proto_time (cursor),
+                    actions,
+                    fty_proto_severity (cursor),
+                    fty_proto_description (cursor));
+            actions = fty_proto_action_next(cursor);
+        }
         cursor = (fty_proto_t *) zlistx_next (list);
     }
 }
@@ -727,7 +749,14 @@ test_alert_publish (
         fty_proto_set_name (item, "%s", fty_proto_name (*message));
         fty_proto_set_severity (item, "%s", fty_proto_severity (*message));
         fty_proto_set_description (item,"%s",  fty_proto_description (*message));
-        fty_proto_set_action (item, "%s", fty_proto_action (*message));
+        zlist_t *actions;
+        if (NULL == fty_proto_action (*message)) {
+            actions = zlist_new ();
+            zlist_autofree (actions);
+        } else {
+            actions = zlist_dup (fty_proto_action (*message));
+        }
+        fty_proto_set_action (item, &actions);
 
         if (str_eq (fty_proto_state (*message), "RESOLVED")) {
             if (!str_eq (fty_proto_state (item), "RESOLVED")) {
@@ -751,7 +780,7 @@ test_alert_publish (
 
     fty_proto_t *copy = fty_proto_dup (*message);
     assert (copy);
-    zmsg_t *zmessage = fty_proto_encode (message);
+    zmsg_t *zmessage = fty_proto_encode (&copy);
     assert (zmessage);
     int rv = mlm_client_send (producer, "Nobody here cares about this.", &zmessage);
     assert (rv == 0);
@@ -762,9 +791,9 @@ test_alert_publish (
 //    fty_proto_print (received);
 //    fty_proto_print (copy);
 
-    assert (alert_comparator (copy, received) == 0);
+    assert (alert_comparator (*message, received) == 0);
     fty_proto_destroy (&received);
-    fty_proto_destroy (&copy);
+    fty_proto_destroy (message);
 }
 
 void
@@ -828,7 +857,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("RESOLVED", alerts, &reply, 0);
 
     // add new alert
-    fty_proto_t *alert = alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, "EMAIL|SMS", 0);
+    zlist_t *actions1 = zlist_new ();
+    zlist_autofree (actions1);
+    zlist_append(actions1, "EMAIL");
+    zlist_append(actions1, "SMS");
+    fty_proto_t *alert = alert_new ("Threshold", "ups", "ACTIVE", "high", "description", 1, &actions1, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -847,7 +880,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("ACTIVE", alerts, &reply, 0);
 
     // add new alert
-    alert = alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 2, "EMAIL|SMS", 0);
+    zlist_t *actions2 = zlist_new ();
+    zlist_autofree (actions2);
+    zlist_append(actions2, "EMAIL");
+    zlist_append(actions2, "SMS");
+    alert = alert_new ("Threshold", "epdu", "ACTIVE", "high", "description", 2, &actions2, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -857,7 +894,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("ACTIVE", alerts, &reply, 0);
 
     // add new alert
-    alert = alert_new ("SimpleRule", "ups", "ACTIVE", "high", "description", 3, "EMAIL|SMS", 0);
+    zlist_t *actions3 = zlist_new ();
+    zlist_autofree (actions3);
+    zlist_append(actions3, "EMAIL");
+    zlist_append(actions3, "SMS");
+    alert = alert_new ("SimpleRule", "ups", "ACTIVE", "high", "description", 3, &actions3, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -867,7 +908,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("ACTIVE", alerts, &reply, 0);
 
     // add new alert
-    alert = alert_new ("SimpleRule", "ŽlUťOUčKý kůň супер", "ACTIVE", "high", "description", 4, "EMAIL|SMS", 0);
+    zlist_t *actions4 = zlist_new ();
+    zlist_autofree (actions4);
+    zlist_append(actions4, "EMAIL");
+    zlist_append(actions4, "SMS");
+    alert = alert_new ("SimpleRule", "ŽlUťOUčKý kůň супер", "ACTIVE", "high", "description", 4, &actions4, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -883,7 +928,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("RESOLVED", alerts, &reply, 0);
 
     // add new alert
-    alert = alert_new ("Threshold", "ŽlUťOUčKý kůň супер", "RESOLVED", "high", "description", 4, "EMAIL|SMS", 0);
+    zlist_t *actions5 = zlist_new ();
+    zlist_autofree (actions5);
+    zlist_append(actions5, "EMAIL");
+    zlist_append(actions5, "SMS");
+    alert = alert_new ("Threshold", "ŽlUťOUčKý kůň супер", "RESOLVED", "high", "description", 4, &actions5, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -987,7 +1036,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("RESOLVED", alerts, &reply, 0);
 
     // resolve alert
-    alert = alert_new ("SimpleRule", "Žluťoučký kůň супер", "RESOLVED", "high", "description", 13, "EMAIL|SMS", 0);
+    zlist_t *actions6 = zlist_new ();
+    zlist_autofree (actions6);
+    zlist_append(actions6, "EMAIL");
+    zlist_append(actions6, "SMS");
+    alert = alert_new ("SimpleRule", "Žluťoučký kůň супер", "RESOLVED", "high", "description", 13, &actions6, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -1000,7 +1053,11 @@ fty_alert_list_server_test (bool verbose)
     test_check_result ("RESOLVED", alerts, &reply, 0);
 
     // test: For non-RESOLVED alerts timestamp of when first published is stored
-    alert = alert_new ("#1549", "epdu", "ACTIVE", "high", "description", time (NULL), "EMAIL|SMS", 0);
+    zlist_t *actions7 = zlist_new ();
+    zlist_autofree (actions7);
+    zlist_append(actions7, "EMAIL");
+    zlist_append(actions7, "SMS");
+    alert = alert_new ("#1549", "epdu", "ACTIVE", "high", "description", time (NULL), &actions7, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -1044,7 +1101,11 @@ fty_alert_list_server_test (bool verbose)
     reply = test_request_alerts_list (ui, "ACTIVE");
     test_check_result ("ACTIVE", alerts, &reply, 0);
 
-    alert = alert_new ("#1549", "epdu", "RESOLVED", "high", "description", time (NULL) + 8, "EMAIL|SMS", 0);
+    zlist_t *actions8 = zlist_new ();
+    zlist_autofree (actions8);
+    zlist_append(actions8, "EMAIL");
+    zlist_append(actions8, "SMS");
+    alert = alert_new ("#1549", "epdu", "RESOLVED", "high", "description", time (NULL) + 8, &actions8, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -1059,7 +1120,11 @@ fty_alert_list_server_test (bool verbose)
     reply = test_request_alerts_list (ui, "ALL-ACTIVE");
     test_check_result ("ALL-ACTIVE", alerts, &reply, 0);
 
-    alert = alert_new ("#1549", "epdu", "ACTIVE", "high", "description", time (NULL) + 9, "EMAIL|SMS", 0);
+    zlist_t *actions9 = zlist_new ();
+    zlist_autofree (actions9);
+    zlist_append(actions9, "EMAIL");
+    zlist_append(actions9, "SMS");
+    alert = alert_new ("#1549", "epdu", "ACTIVE", "high", "description", time (NULL) + 9, &actions9, 0);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ALL");
@@ -1081,7 +1146,11 @@ fty_alert_list_server_test (bool verbose)
 
     // Now, let's publish an alert as-a-byspass (i.e. we don't add it to expected)
     // and EXPECT A FAILURE (i.e. expected list != received list)
-    zmsg_t *alert_bypass = fty_proto_encode_alert (NULL, 14, 0, "Pattern", "rack", "ACTIVE", "high", "description", "EMAIL|SMS");
+    zlist_t *actions10 = zlist_new ();
+    zlist_autofree (actions10);
+    zlist_append(actions10, "EMAIL");
+    zlist_append(actions10, "SMS");
+    zmsg_t *alert_bypass = fty_proto_encode_alert (NULL, 14, 0, "Pattern", "rack", "ACTIVE", "high", "description", actions10);
     rv = mlm_client_send (producer, "Nobody cares", &alert_bypass);
     assert (rv == 0);
     zclock_sleep (200);
@@ -1104,7 +1173,11 @@ fty_alert_list_server_test (bool verbose)
     reply = test_request_alerts_list (ui, "ALL-ACTIVE");
     test_check_result ("ALL-ACTIVE", alerts, &reply, 1);
 
-    alert_bypass = fty_proto_encode_alert (NULL, 15, 0, "Pattern", "rack", "RESOLVED", "high", "description", "EMAIL|SMS");
+    zlist_t *actions11 = zlist_new ();
+    zlist_autofree (actions11);
+    zlist_append(actions11, "EMAIL");
+    zlist_append(actions11, "SMS");
+    alert_bypass = fty_proto_encode_alert (NULL, 15, 0, "Pattern", "rack", "RESOLVED", "high", "description", actions11);
     mlm_client_send (producer, "Nobody cares", &alert_bypass);
     assert (rv == 0);
     zclock_sleep (100);
@@ -1127,7 +1200,11 @@ fty_alert_list_server_test (bool verbose)
     reply = test_request_alerts_list (ui, "ALL-ACTIVE");
     test_check_result ("ALL-ACTIVE", alerts, &reply, 0);
 
-    alert = alert_new ("BlackBooks", "store", "ACTIVE", "high", "description", 16, "EMAIL|SMS", 2);
+    zlist_t *actions12 = zlist_new ();
+    zlist_autofree (actions12);
+    zlist_append(actions12, "EMAIL");
+    zlist_append(actions12, "SMS");
+    alert = alert_new ("BlackBooks", "store", "ACTIVE", "high", "description", 16, &actions12, 2);
     test_alert_publish (producer, consumer, alerts, &alert);
 
     reply = test_request_alerts_list (ui, "ACTIVE");
@@ -1306,6 +1383,32 @@ fty_alert_list_server_test (bool verbose)
 
     zactor_destroy (&fty_al_server);
     zactor_destroy (&server);
+
+
+    if (NULL != actions1)
+        zlist_destroy (&actions1);
+    if (NULL != actions2)
+        zlist_destroy (&actions2);
+    if (NULL != actions3)
+        zlist_destroy (&actions3);
+    if (NULL != actions4)
+        zlist_destroy (&actions4);
+    if (NULL != actions5)
+        zlist_destroy (&actions5);
+    if (NULL != actions6)
+        zlist_destroy (&actions6);
+    if (NULL != actions7)
+        zlist_destroy (&actions7);
+    if (NULL != actions8)
+        zlist_destroy (&actions8);
+    if (NULL != actions9)
+        zlist_destroy (&actions9);
+    if (NULL != actions10)
+        zlist_destroy (&actions10);
+    if (NULL != actions11)
+        zlist_destroy (&actions11);
+    if (NULL != actions12)
+        zlist_destroy (&actions12);
 
     printf ("OK\n");
 }
