@@ -89,7 +89,10 @@ s_resolve_expired_alerts (zhash_t *exp, zlistx_t *alerts)
     while (cursor) {
         if (s_alert_expired (exp, cursor) && streq (fty_proto_state (cursor), "ACTIVE")) {
             fty_proto_set_state (cursor, "%s", "RESOLVED");
-            zsys_info ("resolving alert:");
+            char *new_desc = zsys_sprintf("%s - %s", fty_proto_description (cursor), "TTLCLEANUP");
+            fty_proto_set_description (cursor, "%s", new_desc);
+            zsys_info ("s_resolve_expired_alerts: resolving alert");
+
             fty_proto_print (cursor);
         }
         cursor = (fty_proto_t *) zlistx_next (alerts);
@@ -173,7 +176,7 @@ s_handle_stream_deliver (mlm_client_t *client, zmsg_t** msg_p, zlistx_t *alerts,
             }
         }
     }
-    
+
     fty_proto_t *alert_dup = fty_proto_dup (alert);
     zmsg_t *encoded = fty_proto_encode (&alert_dup);
     assert (encoded);
