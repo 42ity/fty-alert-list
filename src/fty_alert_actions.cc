@@ -142,23 +142,23 @@ TEST_VARS
 TEST_FUNCTIONS
 
 
-static const std::map <std::pair <std::string, uint8_t>, uint32_t> times = {
-    //                  h *  m *  s *   ms
-    { {"CRITICAL", 1},       5 * 60 * 1000}, // =  5m
-    { {"CRITICAL", 2},      15 * 60 * 1000}, // = 15m
-    { {"CRITICAL", 3},      15 * 60 * 1000}, // = 15m
-    { {"CRITICAL", 4},      15 * 60 * 1000}, // = 15m
-    { {"CRITICAL", 5},      15 * 60 * 1000}, // = 15m
-    { {"WARNING", 1},   1 * 60 * 60 * 1000}, // =  1h
-    { {"WARNING", 2},   4 * 60 * 60 * 1000}, // =  4h
-    { {"WARNING", 3},   4 * 60 * 60 * 1000}, // =  4h
-    { {"WARNING", 4},   4 * 60 * 60 * 1000}, // =  4h
-    { {"WARNING", 5},   4 * 60 * 60 * 1000}, // =  4h
-    { {"INFO", 1},      8 * 60 * 60 * 1000}, // =  8h
-    { {"INFO", 2},     24 * 60 * 60 * 1000}, // = 24h
-    { {"INFO", 3},     24 * 60 * 60 * 1000}, // = 24h
-    { {"INFO", 4},     24 * 60 * 60 * 1000}, // = 24h
-    { {"INFO", 5},     24 * 60 * 60 * 1000}  // = 24h
+static const std::map <std::pair <std::string, std::string>, uint64_t> times = {
+    //                    h *  m *  s *   ms
+    { {"CRITICAL", "1"},       5 * 60 * 1000}, // =  5m
+    { {"CRITICAL", "2"},      15 * 60 * 1000}, // = 15m
+    { {"CRITICAL", "3"},      15 * 60 * 1000}, // = 15m
+    { {"CRITICAL", "4"},      15 * 60 * 1000}, // = 15m
+    { {"CRITICAL", "5"},      15 * 60 * 1000}, // = 15m
+    { {"WARNING", "1"},   1 * 60 * 60 * 1000}, // =  1h
+    { {"WARNING", "2"},   4 * 60 * 60 * 1000}, // =  4h
+    { {"WARNING", "3"},   4 * 60 * 60 * 1000}, // =  4h
+    { {"WARNING", "4"},   4 * 60 * 60 * 1000}, // =  4h
+    { {"WARNING", "5"},   4 * 60 * 60 * 1000}, // =  4h
+    { {"INFO", "1"},      8 * 60 * 60 * 1000}, // =  8h
+    { {"INFO", "2"},     24 * 60 * 60 * 1000}, // = 24h
+    { {"INFO", "3"},     24 * 60 * 60 * 1000}, // = 24h
+    { {"INFO", "4"},     24 * 60 * 60 * 1000}, // = 24h
+    { {"INFO", "5"},     24 * 60 * 60 * 1000}  // = 24h
 };
 
 
@@ -169,7 +169,6 @@ struct _fty_alert_actions_t {
     mlm_client_t    *requestreply_client;
     zpoller_t       *requestreply_poller;
     zhash_t         *alerts_cache;
-//    zhash_t         *assets_cache;
     char            *name;
     char            *requestreply_name;
     bool            integration_test;
@@ -182,7 +181,6 @@ typedef struct {
     uint64_t    last_notification;
     uint64_t    last_received;
     char *related_asset;
-//    fty_proto_t *related_asset;
 } s_alert_cache;
 
 
@@ -214,8 +212,6 @@ fty_alert_actions_new (void)
     assert (self->requestreply_poller);
     self->alerts_cache = zhash_new ();
     assert (self->alerts_cache);
-    //self->assets_cache = zhash_new ();
-    //assert (self->assets_cache);
     self->integration_test = false;
     self->notification_override = 0;
     self->name = NULL;
@@ -234,7 +230,6 @@ fty_alert_actions_destroy (fty_alert_actions_t **self_p)
     if (*self_p) {
         fty_alert_actions_t *self = *self_p;
         //  Free class properties here
-        //  Free object itself
         if (NULL != self->client) {
             mlm_client_destroy (&self->client);
         }
@@ -247,12 +242,10 @@ fty_alert_actions_destroy (fty_alert_actions_t **self_p)
         if (NULL != self->alerts_cache) {
             zhash_destroy (&self->alerts_cache);
         }
-        //if (NULL != self->assets_cache) {
-        //    zhash_destroy (&self->assets_cache);
-        //}
         if (NULL != self->requestreply_name) {
             zstr_free(&self->requestreply_name);
         }
+        //  Free object itself
         free (self);
         *self_p = NULL;
     }
@@ -269,16 +262,15 @@ get_alert_interval(s_alert_cache *alert_cache, uint64_t override_time = 0)
         return override_time;
     }
     std::string severity = fty_proto_severity(alert_cache->alert_msg);
-    std::stringstream priority_str ( FullAssetDatabase::getInstance().getAsset (alert_cache->related_asset)->getAuxItem ("priority"));
-    uint8_t priority = 0;
-    priority_str >> priority;
-    std::pair <std::string, uint8_t> key = {severity, priority};
+    std::string priority ( FullAssetDatabase::getInstance().getAsset (alert_cache->related_asset)->getAuxItem ("priority"));
+    std::pair <std::string, std::string> key = {severity, priority};
     auto it = times.find(key);
     if (it != times.end()) {
         return (*it).second;
     } else {
         return 0;
     }
+    return 0;
 }
 
 
@@ -298,9 +290,7 @@ new_alert_cache_item(fty_alert_actions_t *self, fty_proto_t *msg)
     c->related_asset = strdup (fty_proto_name (msg));
     log_debug ("searching for %s", fty_proto_name (msg));
 
-    //c->related_asset = (fty_proto_t *) zhash_lookup(self->assets_cache, fty_proto_name(msg));
     if (nullptr == FullAssetDatabase::getInstance ().getAsset (fty_proto_name (msg)) && !self->integration_test) {
-    //if (NULL == c->related_asset && !self->integration_test) {
         // we don't know an asset we receieved alert about, ask fty-asset about it
         log_debug ("ask ASSET AGENT for ASSET_DETAIL about %s", fty_proto_name(msg));
         zuuid_t *uuid = zuuid_new ();
@@ -320,7 +310,7 @@ new_alert_cache_item(fty_alert_actions_t *self, fty_proto_t *msg)
                 s_handle_stream_deliver_asset (self, &reply_proto_msg, mlm_client_subject (self->client));
                 FullAsset related_asset (reply_proto_msg);
                 FullAssetDatabase::getInstance ().insertOrUpdateAsset (related_asset);
-                //c->related_asset = (fty_proto_t *) zhash_lookup(self->assets_cache, fty_proto_name(msg));
+                fty_proto_destroy (&reply_proto_msg);
             }
             else {
                 log_warning("received alert for unknown asset, ignoring.");
@@ -329,7 +319,7 @@ new_alert_cache_item(fty_alert_actions_t *self, fty_proto_t *msg)
                 }
                 free(c);
                 c = NULL;
-                // msg will be destroy by caller
+                // msg will be destroyed by caller
             }
             zstr_free(&rcv_uuid);
         }
@@ -790,27 +780,14 @@ s_handle_stream_deliver_asset(fty_alert_actions_t *self, fty_proto_t **asset_p, 
         // TODO FIXME Since we can't delete now, just resolve alerts
         s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
         while (NULL != it) {
-            if (it->related_asset == assetname) {
+            if (streq (it->related_asset, assetname)) {
+                log_error ("%s", it->related_asset);
                 // delete all alerts related to deleted asset
                 action_resolve(self, it);
                 zhash_delete(self->alerts_cache, zhash_cursor(self->alerts_cache));
             }
             it = (s_alert_cache *) zhash_next(self->alerts_cache);
         }
-
-        /*fty_proto_t *item = (fty_proto_t *)zhash_lookup (self->assets_cache, assetname);
-        if (NULL != item) {
-            s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
-            while (NULL != it) {
-                if (it->related_asset == item) {
-                    // delete all alerts related to deleted asset
-                    action_resolve(self, it);
-                    zhash_delete(self->alerts_cache, zhash_cursor(self->alerts_cache));
-                }
-                it = (s_alert_cache *) zhash_next(self->alerts_cache);
-            }
-            zhash_delete (self->assets_cache, assetname);
-        }*/
         fty_proto_destroy (asset_p);
     }
     else if (streq (operation, FTY_PROTO_ASSET_OP_UPDATE)) {
@@ -832,7 +809,7 @@ s_handle_stream_deliver_asset(fty_alert_actions_t *self, fty_proto_t **asset_p, 
                 log_debug("known asset was updated, resolving previous alert");
                 s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
                 while (NULL != it) {
-                    if (it->related_asset == assetname) {
+                    if (streq (it->related_asset, assetname)) {
                         // just resolve, will be activated again
                         action_resolve(self, it);
                     }
@@ -840,25 +817,25 @@ s_handle_stream_deliver_asset(fty_alert_actions_t *self, fty_proto_t **asset_p, 
                 }
             }
 
-            zhash_t *asset_ext = fty_proto_get_ext (asset);
+            zhash_t *asset_ext = fty_proto_ext (asset);
             auto tmp_ext = MlmUtils::zhash_to_map (asset_ext);
-            //zhash_t *asset_aux= fty_proto_get_ext (asset);
-            //auto tmp_aux = MlmUtils::zhash_to_map (fty_proto_get_aux (asset));
+            zhash_t *asset_aux= fty_proto_aux (asset);
+            auto tmp_aux = MlmUtils::zhash_to_map (asset_aux);
             old_asset->setExt (tmp_ext);
-            //old_asset->setAux (tmp_aux);
-            fty_proto_destroy (asset_p);
+            old_asset->setAux (tmp_aux);
 
             if (changed) {
                 log_debug("known asset was updated, sending notifications");
                 s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
                 while (NULL != it) {
-                    if (it->related_asset == assetname) {
+                    if (streq (it->related_asset, assetname)) {
                         // force an alert since contact info changed
                         action_alert(self, it);
                     }
                     it = (s_alert_cache *) zhash_next(self->alerts_cache);
                 }
             }
+            fty_proto_destroy (asset_p);
         }
         else {
             FullAssetDatabase::getInstance().insertOrUpdateAsset (new_asset);
@@ -886,6 +863,8 @@ s_handle_stream_deliver(fty_alert_actions_t *self, zmsg_t** msg_p, const char *s
     }
     else if (NULL != proto_msg && fty_proto_id (proto_msg) == FTY_PROTO_ASSET) {
         s_handle_stream_deliver_asset(self, &proto_msg, subject);
+        if (proto_msg)
+            fty_proto_destroy (&proto_msg);
     }
     else {
         log_warning (" Message not FTY_PROTO_ALERT nor FTY_PROTO_ASSET, ignoring.");
@@ -1056,55 +1035,53 @@ fty_alert_actions_test (bool verbose)
     }
 
     // test 2, check alert interval calculation
-    /*{
+    {
         log_debug("test 2");
         s_alert_cache *cache = (s_alert_cache *) malloc(sizeof(s_alert_cache));
         cache->alert_msg = fty_proto_new(FTY_PROTO_ALERT);
 
         zhash_t *aux = zhash_new ();
+        zhash_autofree (aux);
+        zhash_insert (aux, "type", (void *) "datacenter");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
-        zmsg_t *msg = fty_proto_encode_asset (aux, "testdatacenter", FTY_PROTO_OP_CREATE, ext);
+        zmsg_t *msg = fty_proto_encode_asset (aux, "testdatacenter", FTY_PROTO_ASSET_OP_CREATE, ext);
+        fty_proto_t *fty_msg = fty_proto_decode (&msg);
+        FullAsset asset (fty_msg);
+        FullAssetDatabase::getInstance().insertOrUpdateAsset (asset);
 
-        cache->related_asset = fty_proto_new(FTY_PROTO_ASSET);
+        cache->related_asset = strdup ("testdatacenter");
+
+        FullAssetDatabase::getInstance().getAsset (cache->related_asset)->setAuxItem ("priority", "1");
 
         fty_proto_set_severity(cache->alert_msg, "CRITICAL");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)1);
         assert(5  * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "WARNING");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)1);
         assert(1 * 60 * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "INFO");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)1);
         assert(8 * 60 * 60 * 1000 == get_alert_interval(cache));
 
+        FullAssetDatabase::getInstance().getAsset (cache->related_asset)->setAuxItem ("priority", "3");
         fty_proto_set_severity(cache->alert_msg, "CRITICAL");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)3);
         assert(15 * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "WARNING");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)3);
         assert(4 * 60 * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "INFO");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)3);
         assert(24 * 60 * 60 * 1000 == get_alert_interval(cache));
 
+        FullAssetDatabase::getInstance().getAsset (cache->related_asset)->setAuxItem ("priority", "5");
         fty_proto_set_severity(cache->alert_msg, "CRITICAL");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)5);
         assert(15 * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "WARNING");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)5);
         assert(4 * 60 * 60 * 1000 == get_alert_interval(cache));
-
         fty_proto_set_severity(cache->alert_msg, "INFO");
-        fty_proto_aux_insert(cache->related_asset, "priority", "%u", (unsigned int)5);
         assert(24 * 60 * 60 * 1000 == get_alert_interval(cache));
 
+        fty_proto_destroy (&fty_msg);
+        zhash_destroy (&aux);
+        zhash_destroy (&ext);
         fty_proto_destroy(&cache->alert_msg);
-        fty_proto_destroy(&cache->related_asset);
+        zstr_free(&cache->related_asset);
         free(cache);
     }
 
@@ -1113,12 +1090,26 @@ fty_alert_actions_test (bool verbose)
         log_debug("test 3");
         fty_alert_actions_t *self = fty_alert_actions_new ();
         assert (self);
-        fty_proto_t *msg = fty_proto_new(FTY_PROTO_ALERT);
-        assert (msg);
-        fty_proto_set_name(msg, "myasset-3");
 
-        s_alert_cache *cache = new_alert_cache_item(self, msg);
+        zhash_t *aux = zhash_new ();
+        zhash_autofree (aux);
+        zhash_insert (aux, "type", (void *) "datacenter");
+        zhash_insert (aux, "subtype", (void *) "N_A");
+        zhash_t *ext = zhash_new ();
+        zmsg_t *msg = fty_proto_encode_asset (aux, "testdatacenter", FTY_PROTO_ASSET_OP_CREATE, ext);
+        fty_proto_t *fty_msg = fty_proto_decode (&msg);
+        FullAsset asset (fty_msg);
+        FullAssetDatabase::getInstance().insertOrUpdateAsset (asset);
+
+        fty_proto_t *alert = fty_proto_new(FTY_PROTO_ALERT);
+        assert (alert);
+        fty_proto_set_name(alert, "testdatacenter");
+
+        s_alert_cache *cache = new_alert_cache_item(self, alert);
         assert(cache);
+        fty_proto_destroy (&fty_msg);
+        zhash_destroy (&aux);
+        zhash_destroy (&ext);
         delete_alert_cache_item(cache);
 
         fty_alert_actions_destroy (&self);
@@ -1130,7 +1121,7 @@ fty_alert_actions_test (bool verbose)
         SET_UUID((char *) "uuid-test");
         zhash_t *aux = zhash_new();
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new();
         zmsg_t *resp_msg = fty_proto_encode_asset(aux, "myasset-2", FTY_PROTO_ASSET_OP_UPDATE, ext);
         zmsg_pushstr(resp_msg, GET_UUID);
@@ -1160,7 +1151,7 @@ fty_alert_actions_test (bool verbose)
         SET_UUID((char *)"uuid-test");
         zhash_t *aux = zhash_new();
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new();
         zmsg_t *resp_msg = fty_proto_encode_asset(aux, "SOME_ASSET", FTY_PROTO_ASSET_OP_UPDATE, ext);
         zmsg_pushstr(resp_msg, GET_UUID);
@@ -1232,49 +1223,11 @@ fty_alert_actions_test (bool verbose)
         zhash_destroy(&ext);
         CLEAN_RECV;
     }
-    // test 6, processing of assets from stream
     {
-        log_debug("test 6");
-        fty_alert_actions_t *self = fty_alert_actions_new ();
-        assert (self);
-
-        // send update
-        zmsg_t *msg = fty_proto_encode_asset
-                        (NULL,
-                         "SOME_ASSET",
-                         FTY_PROTO_ASSET_OP_UPDATE,
-                         NULL);
-        assert (msg);
-
-        s_handle_stream_deliver (self, &msg, "");
-        zclock_sleep (1000);
-
-        // check the assets cache
-        assert ( zhash_size (self->assets_cache) == 1 );
-        fty_proto_t *cached =  (fty_proto_t *) zhash_first (self->assets_cache);
-        assert ( streq (fty_proto_operation (cached), FTY_PROTO_ASSET_OP_UPDATE) );
-        assert ( streq (fty_proto_name (cached), "SOME_ASSET") );
-
-        // delete asset
-        msg = fty_proto_encode_asset
-                        (NULL,
-                         "SOME_ASSET",
-                         FTY_PROTO_ASSET_OP_DELETE,
-                         NULL);
-        assert (msg);
-
-        //assert ( zhash_size (self->assets_cache) != 0 );
-        s_handle_stream_deliver (self, &msg, "");
-        zclock_sleep (1000);
-
-        assert ( zhash_size (self->assets_cache) == 0 );
-        fty_alert_actions_destroy (&self);
-    }
-    {
-        //test 7, send asset + send an alert on the already known correct asset
+        //test 6, send asset + send an alert on the already known correct asset
         // + delete the asset + check that alert disappeared
 
-        log_debug("test 7");
+        log_debug("test 6");
         SET_UUID((char *) "uuid-test");
         zmsg_t *resp_msg = zmsg_new ();
         zmsg_addstr(resp_msg, GET_UUID);
@@ -1291,7 +1244,7 @@ fty_alert_actions_test (bool verbose)
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_email", (void *) "scenario1.email@eaton.com");
         zhash_insert (ext, "contact_name", (void *) "eaton Support team");
@@ -1303,7 +1256,6 @@ fty_alert_actions_test (bool verbose)
                          ext);
         assert (msg);
         s_handle_stream_deliver (self, &msg, "Asset message1");
-        //assert (zhash_size (self->assets_cache) != 0);
         zhash_destroy (&aux);
         zhash_destroy (&ext);
         zclock_sleep (1000);
@@ -1326,7 +1278,6 @@ fty_alert_actions_test (bool verbose)
         std::string atopic = "NY_RULE/CRITICAL@" + std::string (asset_name);
         s_handle_stream_deliver (self, &msg, atopic.c_str ());
         zclock_sleep (1000);
-        //assert ( zhash_size (self->assets_cache) != 0 );
         zlist_destroy (&actions);
 
         //      3. delete the asset
@@ -1337,7 +1288,6 @@ fty_alert_actions_test (bool verbose)
                          NULL);
         assert (msg);
 
-        //assert ( zhash_size (self->assets_cache) != 0 );
         s_handle_stream_deliver (self, &msg, "Asset message 1");
         zclock_sleep (1000);
 
@@ -1381,7 +1331,7 @@ fty_alert_actions_test (bool verbose)
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_email", (void *) "scenario1.email@eaton.com");
         zhash_insert (ext, "contact_name", (void *) "eaton Support team");
@@ -1422,6 +1372,7 @@ fty_alert_actions_test (bool verbose)
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         char *str = zmsg_popstr (msg);
         assert (streq (str, "1"));
         zstr_free (&str);
@@ -1440,14 +1391,6 @@ fty_alert_actions_test (bool verbose)
         assert ( streq (fty_proto_description (alert), "ASDFKLHJH") );
         assert ( streq (fty_proto_action_first (alert), "EMAIL") );
         fty_proto_destroy (&alert);
-
-        //       4. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
     }
 
     // test9, send asset + send an alert on the already known correct asset (with GPO action)
@@ -1462,7 +1405,7 @@ fty_alert_actions_test (bool verbose)
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_email", (void *) "scenario1.email@eaton.com");
         zhash_insert (ext, "contact_name", (void *) "eaton Support team");
@@ -1503,6 +1446,7 @@ fty_alert_actions_test (bool verbose)
         assert (streq (mlm_client_subject (gpio_client), "GPO_INTERACTION"));
         zmsg_print (msg);
         char *zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         char *str = zmsg_popstr (msg);
         assert (streq (str, "gpo-1"));
         zstr_free (&str);
@@ -1510,14 +1454,6 @@ fty_alert_actions_test (bool verbose)
         assert (streq (str, "open"));
         zstr_free (&str);
         zmsg_destroy (&msg);
-
-        //       4. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (gpio_client, FTY_ALERT_ACTIONS_TEST, "GPO_INTERACTION", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
     }
 
     mlm_client_destroy (&gpio_client);
@@ -1531,7 +1467,7 @@ fty_alert_actions_test (bool verbose)
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_name", (void *) "eaton Support team");
         zhash_insert (ext, "name", (void *) asset_name);
@@ -1566,6 +1502,7 @@ fty_alert_actions_test (bool verbose)
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         char *str = zmsg_popstr (msg);
         assert (streq (str, "1"));
         zstr_free (&str);
@@ -1576,15 +1513,6 @@ fty_alert_actions_test (bool verbose)
         assert (streq (str, ""));
         zstr_free (&str);
         zmsg_destroy (&msg);
-
-        //       4. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        zclock_sleep (1000);
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
     }
     zclock_sleep (1000);
     //test 11: two alerts in quick succession, only one e-mail
@@ -1593,7 +1521,7 @@ fty_alert_actions_test (bool verbose)
         const char *asset_name = "ASSET3";
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_insert (aux, "priority", (void *) "1");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_email", (void *) "eaton Support team");
@@ -1629,18 +1557,10 @@ fty_alert_actions_test (bool verbose)
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         zmsg_destroy (&msg);
 
-        //       3. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        assert (reply);
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
-
-        //      4. send an alert on the already known asset
+        //      3. send an alert on the already known asset
         actions = zlist_new ();
         zlist_autofree (actions);
         zlist_append (actions, (void *) "EMAIL");
@@ -1658,7 +1578,7 @@ fty_alert_actions_test (bool verbose)
         mlm_client_send (alert_producer, atopic.c_str(), &msg);
         zlist_destroy (&actions);
 
-        //      5. check that we don't send SENDMAIL_ALERT message (notification interval)
+        //      4. check that we don't send SENDMAIL_ALERT message (notification interval)
         zpoller_t *poller = zpoller_new (mlm_client_msgpipe (email_client), NULL);
         void *which = zpoller_wait (poller, 1000);
         assert ( which == NULL );
@@ -1674,7 +1594,7 @@ fty_alert_actions_test (bool verbose)
         zhash_t *aux = zhash_new ();
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         zhash_insert (ext, "contact_email", (void *) "eaton Support team");
         zhash_insert (ext, "name", (void *) asset_name);
@@ -1711,14 +1631,14 @@ fty_alert_actions_test (bool verbose)
             log_debug ("No email was sent: SUCCESS");
         }
         zpoller_destroy (&poller);
-    }*/
+    }
     // test13  ===============================================
     //
     //------------------------------------------------------------------------------------------------> t
     //
     //  asset is known       alert comes    no email        asset_info        alert comes   email send
     // (without email)                                   updated with email
-    /*{
+    {
         log_debug("test 13");
         const char *asset_name6 = "asset_6";
         const char *rule_name6 = "rule_name_6";
@@ -1729,7 +1649,7 @@ fty_alert_actions_test (bool verbose)
         assert (aux);
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         assert (ext);
         zhash_insert (ext, "name", (void *) asset_name6);
@@ -1764,6 +1684,7 @@ fty_alert_actions_test (bool verbose)
         assert (email);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (email);
+        zstr_free (&zuuid_str);
         char *str = zmsg_popstr (email);
         assert (streq (str, "1"));
         zstr_free (&str);
@@ -1775,15 +1696,7 @@ fty_alert_actions_test (bool verbose)
         zstr_free (&str);
         zmsg_destroy (&email);
 
-        //       4. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
-
-        //      5. send asset info one more time, but with email
+        //      4. send asset info one more time, but with email
         zhash_insert (ext, "contact_email", (void *) "scenario6.email@eaton.com");
         msg = fty_proto_encode_asset (aux, asset_name6, "update", ext);
         assert (msg);
@@ -1794,39 +1707,12 @@ fty_alert_actions_test (bool verbose)
         zhash_destroy (&ext);
         zclock_sleep (1000);
 
-        //      5. send alert message again
-        actions = zlist_new ();
-        zlist_autofree (actions);
-        zlist_append (actions, (void *) "EMAIL");
-        msg = fty_proto_encode_alert
-                (NULL,
-                 ::time (NULL),
-                 600,
-                 rule_name6,
-                 asset_name6,
-                 "ACTIVE",
-                 "CRITICAL",
-                 "ASDFKLHJH",
-                 actions);
-        assert (msg);
-        rv = mlm_client_send (alert_producer, alert_topic6.c_str(), &msg);
-        assert ( rv != -1 );
-        zlist_destroy (&actions);
-
-        //      6. Email SHOULD be generated
         msg = mlm_client_recv (email_client);
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         zuuid_str = zmsg_popstr (msg);
-        zmsg_destroy (&msg);
-
-        //       7. send the reply to unblock the actor
-        reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
         zstr_free (&zuuid_str);
+        zmsg_destroy (&msg);
     }
     //test 14, on ACK-SILENCE we send only one e-mail and then stop
     {
@@ -1838,7 +1724,7 @@ fty_alert_actions_test (bool verbose)
         assert (aux);
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         assert (ext);
         zhash_insert (ext, "name", (void *) asset_name);
@@ -1874,17 +1760,10 @@ fty_alert_actions_test (bool verbose)
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         zmsg_destroy (&msg);
 
-        //       3. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
-
-        //      4. send an alert on the already known asset
+        //      3. send an alert on the already known asset
         actions = zlist_new ();
         zlist_autofree (actions);
         zlist_append (actions, (void *) "EMAIL");
@@ -1902,27 +1781,21 @@ fty_alert_actions_test (bool verbose)
         mlm_client_send (alert_producer, atopic.c_str(), &msg);
         zlist_destroy (&actions);
 
-        //      5. read the email generated for alert
+        //      4. read the email generated for alert
         msg = mlm_client_recv (email_client);
         assert (msg);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         zmsg_destroy (&msg);
 
-        //       6. send the reply to unblock the actor
-        reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
 
-        zstr_free (&zuuid_str);
-
-        // wait for 5 minutes
+        //      5. wait for 5 minutes
         zstr_sendx (alert_actions, "TESTTIMEOUT", "1000", NULL);
         zstr_sendx (alert_actions, "TESTCHECKINTERVAL", "20000", NULL);
         log_debug ("sleeping for 20 seconds...");
         zclock_sleep (20 * 1000);
-        //      7. send an alert again
+        //      6. send an alert again
         actions = zlist_new ();
         zlist_autofree (actions);
         zlist_append (actions, (void *) "EMAIL");
@@ -1940,7 +1813,7 @@ fty_alert_actions_test (bool verbose)
         mlm_client_send (alert_producer, atopic.c_str(), &msg);
         zlist_destroy (&actions);
 
-        //      8. email should not be sent (it is in the state, where alerts are not being sent)
+        //      7. email should not be sent (it is in the state, where alerts are not being sent)
         zpoller_t *poller = zpoller_new (mlm_client_msgpipe (email_client), NULL);
         void *which = zpoller_wait (poller, 1000);
         assert ( which == NULL );
@@ -1967,7 +1840,7 @@ fty_alert_actions_test (bool verbose)
         assert (aux);
         zhash_insert (aux, "priority", (void *) "1");
         zhash_insert (aux, "type", (void *) "datacenter");
-        zhash_insert (aux, "subtype", (void *) "n_a");
+        zhash_insert (aux, "subtype", (void *) "N_A");
         zhash_t *ext = zhash_new ();
         assert (ext);
         zhash_insert (ext, "name", (void *) asset_name8);
@@ -2002,6 +1875,7 @@ fty_alert_actions_test (bool verbose)
         assert (email);
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         char *zuuid_str = zmsg_popstr (email);
+        zstr_free (&zuuid_str);
         char *str = zmsg_popstr (email);
         assert (streq (str, "1"));
         zstr_free (&str);
@@ -2013,22 +1887,13 @@ fty_alert_actions_test (bool verbose)
         zstr_free (&str);
         zmsg_destroy (&email);
 
-        //       4. send the reply to unblock the actor
-        zmsg_t *reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        zclock_sleep (1000);
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
-        zclock_sleep (1000);
-
-        //      3. check that we generate SENDSMS_ALERT message with empty contact
+        //      4. check that we generate SENDSMS_ALERT message with empty contact
         email = mlm_client_recv (email_client);
         assert (email);
         log_debug(mlm_client_subject (email_client));
         assert (streq (mlm_client_subject (email_client), "SENDSMS_ALERT"));
         zuuid_str = zmsg_popstr (email);
+        zstr_free (&zuuid_str);
         str = zmsg_popstr (email);
         assert (streq (str, "1"));
         zstr_free (&str);
@@ -2039,14 +1904,6 @@ fty_alert_actions_test (bool verbose)
         assert (streq (str, ""));
         zstr_free (&str);
         zmsg_destroy (&email);
-
-        //       4. send the reply to unblock the actor
-        reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
 
         //      5. send asset info one more time, but with email
         zhash_insert (ext, "contact_email", (void *) "scenario8.email@eaton.com");
@@ -2086,36 +1943,20 @@ fty_alert_actions_test (bool verbose)
             log_debug ("Email was sent: SUCCESS");
         assert (streq (mlm_client_subject (email_client), "SENDMAIL_ALERT"));
         zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         zmsg_destroy (&msg);
         zclock_sleep (1000);
 
-        //       7. send the reply to unblock the actor
-        reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDMAIL_ALERT", NULL, 1000, &reply);
-
-        zstr_free (&zuuid_str);
-        zclock_sleep (1000);
-
-        //      6. SMS SHOULD be generated
+        //      7. SMS SHOULD be generated
         msg = mlm_client_recv (email_client);
         assert (msg);
         if ( verbose )
             log_debug ("SMS was sent: SUCCESS");
         assert (streq (mlm_client_subject (email_client), "SENDSMS_ALERT"));
         zuuid_str = zmsg_popstr (msg);
+        zstr_free (&zuuid_str);
         zmsg_destroy (&msg);
         zclock_sleep (1000);
-
-        //       7. send the reply to unblock the actor
-        reply = zmsg_new ();
-        zmsg_addstr (reply, zuuid_str);
-        zmsg_addstr (reply, "OK");
-        mlm_client_sendto (email_client, FTY_ALERT_ACTIONS_TEST, "SENDSMS_ALERT", NULL, 1000, &reply);
-        zclock_sleep (1000);
-
-        zstr_free (&zuuid_str);
 
         //      8. send alert message again third time
         actions = zlist_new ();
@@ -2151,6 +1992,6 @@ fty_alert_actions_test (bool verbose)
     mlm_client_destroy (&alert_producer);
     mlm_client_destroy (&asset_producer);
     zactor_destroy (&alert_actions);
-    zactor_destroy (&server);*/
+    zactor_destroy (&server);
     printf ("OK\n");
 }

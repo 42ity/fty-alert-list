@@ -405,7 +405,7 @@ AlertList::process_mailbox (zmsg_t *msg)
 
         log_debug ("Rule '%s' was successfully added", rule_id.c_str ());
         zmsg_addstr (reply, correlation_id);
-        zmsg_addstr (reply, "ADD");
+        zmsg_addstr (reply, "OK");
         zmsg_addstr (reply, rule_id.c_str ());
     }
     else if (streq (cmd, "CHANGESTATE")) {
@@ -589,7 +589,7 @@ alert_list_test (bool verbose)
     assert (streq (str, zuuid_str_canonical (uuid)));
     zstr_free (&str);
     str = zmsg_popstr (reply);
-    assert (streq (str, "ADD"));
+    assert (streq (str, "OK"));
     zstr_free (&str);
     zuuid_destroy (&uuid);
     str = zmsg_popstr (reply);
