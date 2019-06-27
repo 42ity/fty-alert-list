@@ -1,3 +1,31 @@
+/*  =========================================================================
+    rule - Abstract rule class
+
+    Copyright (C) 2019 - 2019 Eaton
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    =========================================================================
+*/
+
+/*
+@header
+    rule - Abstract rule class
+@discuss
+@end
+*/
+
 #include <cxxtools/utf8codec.h>
 #include <cxxtools/jsonserializer.h>
 #include <cxxtools/jsondeserializer.h>
@@ -5,7 +33,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "rule.h"
+#include "fty_alert_list_classes.h"
 
 // 1, ..., 4 - # of utf8 octets
 // -1 - error
@@ -87,18 +115,10 @@ utf8eq (const std::string& s1, const std::string& s2)
     return 1;
 }
 
-void
-si_getValueUtf8 (const cxxtools::SerializationInfo& si, const std::string& membername_, std::string& result)
-{
-    std::basic_string <cxxtools::Char> cxxtools_Charname_;
-    si.getMember (membername_).getValue (cxxtools_Charname_);
-    result = cxxtools::Utf8Codec::encode (cxxtools_Charname_);
-}
-
 Rule::Rule (const std::string json) {
     std::istringstream iss (json);
     cxxtools::JsonDeserializer jd (iss);
-    jd.deserialize (*this);
+    jd.deserialize (*this); // runs operator >>= on this object
 }
 
 void Rule::setGlobalVariables (const VariableMap vars) {
@@ -122,12 +142,16 @@ std::string Rule::getJsonRule (void) const {
 }
 
 void Rule::save (const std::string &path) const {
-    std::string fullname = path + name_ + ".rule";
+    std::string fullname = path + "/" + name_ + ".rule";
     log_debug ("trying to save file : '%s'", fullname.c_str ());
-    std::ofstream ofs (fullname, std::ofstream::out);
-    ofs.exceptions (~std::ofstream::goodbit);
-    ofs << getJsonRule ();
-    ofs.close ();
+    try {
+        std::ofstream ofs (fullname, std::ofstream::out);
+        ofs.exceptions (~std::ofstream::goodbit);
+        ofs << getJsonRule ();
+        ofs.close ();
+    } catch (...) {
+        throw unable_to_save ();
+    }
 }
 
 int Rule::remove (const std::string &path) {
@@ -149,7 +173,11 @@ RuleAssetMatcher::RuleAssetMatcher (const std::string &asset) :
 }
 
 bool RuleAssetMatcher::operator ()(const Rule &rule) {
-    return std::find (rule.getAssets ().begin (), rule.getAssets ().end (), asset_) != rule.getAssets ().end ();
+    for (const std::string &a : rule.getAssets ()) {
+        if (a == asset_)
+            return true;
+    }
+    return false;
 }
 
 /*
@@ -448,9 +476,73 @@ void Rule::saveToSerializedObject (cxxtools::SerializationInfo &si) const {
         root.addMember ("hierarchy") <<= hierarchy_;
 }
 
-bool Rule::compare (const Rule &rule) const {
+bool Rule::operator == (const Rule &rule) const {
     return rule.name_ == name_ && rule.description_ == description_ && rule.class_ == class_ &&
         rule.categories_ == categories_ && rule.metrics_ == metrics_ && rule.results_ == results_ &&
         rule.source_ == source_ && rule.assets_ == assets_ && rule.variables_ == variables_ &&
         rule.value_unit_ == value_unit_ && rule.hierarchy_ == hierarchy_;
+}
+
+GenericRule::GenericRule (const std::string json) : Rule (json) {
+    std::istringstream iss (json);
+    cxxtools::JsonDeserializer jd (iss);
+    cxxtools::SerializationInfo si;
+    jd.deserialize (si);
+    auto elem = si.getMember (0);
+    rule_type_ = elem.name ();
+}
+
+GenericRule::VectorStrings GenericRule::evaluate (const GenericRule::VectorStrings &metrics) {
+    return VectorStrings ();
+}
+
+GenericRule::VectorVectorStrings GenericRule::evaluate (const GenericRule::MapStrings &active_metrics,
+        const GenericRule::SetStrings &inactive_metrics) {
+    return VectorVectorStrings ();
+}
+
+//  --------------------------------------------------------------------------
+//  Self test of this class
+
+// If your selftest reads SCMed fixture data, please keep it in
+// src/selftest-ro; if your test creates filesystem objects, please
+// do so under src/selftest-rw.
+// The following pattern is suggested for C selftest code:
+//    char *filename = NULL;
+//    filename = zsys_sprintf ("%s/%s", SELFTEST_DIR_RO, "mytemplate.file");
+//    assert (filename);
+//    ... use the "filename" for I/O ...
+//    zstr_free (&filename);
+// This way the same "filename" variable can be reused for many subtests.
+#define SELFTEST_DIR_RO "src/selftest-ro"
+#define SELFTEST_DIR_RW "src/selftest-rw"
+
+void
+rule_test (bool verbose)
+{
+    printf (" * rule: ");
+
+    // Rule r; // compiler error, Rule is abstract
+    GenericRule gr ("metric@asset1", {"metric1"}, {"asset1"}, {"CAT_ALL"}, {{"ok", {{}, "critical",
+            "ok_description"}}});
+    gr.setGlobalVariables ({{"var1", "val1"}, {"var2", "val2"}});
+    assert (gr.whoami () == "generic");
+    std::string json = gr.getJsonRule ();
+    json.erase (remove_if (json.begin (), json.end (), isspace), json.end ());
+    assert (json == std::string ("{\"generic\":{\"name\":\"metric@asset1\",\"categories\":[\"CAT_ALL\"],\"metrics\"") +
+            ":[\"metric1\"],\"results\":[{\"ok\":{\"action\":[],\"severity\":\"critical\",\"description\":\"" +
+            "ok_description\",\"threshold_name\":\"\"}}],\"assets\":[\"asset1\"],\"values\":[{\"var1\":\"val1\"},{\"" +
+            "var2\":\"val2\"}]}}");
+    GenericRule gr2 (json);
+    GenericRule gr3 (json);
+    assert (gr3.whoami () == "generic");
+    assert (gr2 == gr3);
+    std::string json3 = gr3.getJsonRule ();
+    GenericRule gr4 (json3);
+    json3.erase (remove_if (json3.begin (), json3.end (), isspace), json3.end ());
+    std::string json4 = gr4.getJsonRule ();
+    json4.erase (remove_if (json4.begin (), json4.end (), isspace), json4.end ());
+    assert (json3 == json && json3 == json4);
+
+    printf ("OK\n");
 }

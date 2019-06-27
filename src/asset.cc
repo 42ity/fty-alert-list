@@ -1,6 +1,33 @@
-#include <string>
+/*  =========================================================================
+    asset - Asset class
 
-#include "asset.h"
+    Copyright (C) 2019 - 2019 Eaton
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    =========================================================================
+*/
+
+/*
+@header
+    asset - Asset class
+@discuss
+@end
+*/
+
+#include <string>
+#include "fty_alert_list_library.h"
 
 std::string BasicAsset::typeToString (BasicAsset::Type type) const {
     switch (type) {
@@ -132,7 +159,7 @@ std::string BasicAsset::subtypeToString (BasicAsset::Subtype subtype) const {
         case Subtype_NutanixVirtualizationMachine:
             return "nutanixvirtualizationmachine";
         case Subtype_N_A:
-            return "N_A";
+            return "n_a";
         case Subtype_Other:
             return "other";
         case Subtype_PatchPanel:
@@ -245,7 +272,7 @@ BasicAsset::Subtype BasicAsset::stringToSubtype (std::string subtype) const {
         return Subtype_NutanixPrismGateway;
     } else if (subtype == "nutanixvirtualizationmachine") {
         return Subtype_NutanixVirtualizationMachine;
-    } else if (subtype == "N_A") {
+    } else if (subtype == "n_a" || subtype == "N_A") {
         return Subtype_N_A;
     } else if (subtype == "other") {
         return Subtype_Other;
@@ -298,8 +325,6 @@ std::string BasicAsset::statusToString (BasicAsset::Status status) const {
             return "active";
         case Status::Nonactive:
             return "nonactive";
-        case Status::Spare:
-            return "spare";
         default:
             throw std::invalid_argument ("status is not known value");
     }
@@ -310,19 +335,17 @@ BasicAsset::Status BasicAsset::stringToStatus (std::string status) const {
         return Status::Active;
     } else if (status == "nonactive") {
         return Status::Nonactive;
-    } else if (status == "spare") {
-        return Status::Spare;
     } else {
         throw std::invalid_argument ("status is not known value");
     }
 }
 
-bool BasicAsset::compare (const BasicAsset &asset) const {
+bool BasicAsset::operator == (const BasicAsset &asset) const {
     return id_ == asset.id_ && status_ == asset.status_ && type_subtype_ == asset.type_subtype_;
 }
 
-bool ExtendedAsset::compare (const ExtendedAsset &asset) const {
-    return BasicAsset::compare (asset) && name_ == asset.name_ && parent_id_ == asset.parent_id_ &&
+bool ExtendedAsset::operator == (const ExtendedAsset &asset) const {
+    return BasicAsset::operator == (asset) && name_ == asset.name_ && parent_id_ == asset.parent_id_ &&
         priority_ == asset.priority_;
 }
 
@@ -330,8 +353,8 @@ void ExtendedAsset::setPriority (const std::string priority) {
     priority_ = priority[1] - '0';
 }
 
-bool FullAsset::compare (const FullAsset &asset) const {
-    return ExtendedAsset::compare (asset) && aux_ == asset.aux_ && ext_ == asset.ext_;
+bool FullAsset::operator == (const FullAsset &asset) const {
+    return ExtendedAsset::operator == (asset) && aux_ == asset.aux_ && ext_ == asset.ext_;
 }
 
 std::string FullAsset::getAuxItem (const std::string &key) const {
@@ -361,4 +384,170 @@ std::string FullAsset::getItem (const std::string &key) const {
         }
     }
     return std::string ();
+}
+
+std::unique_ptr<BasicAsset> getBasicAssetFromFtyProto (fty_proto_t *msg) {
+    if (fty_proto_id (msg) != FTY_PROTO_ASSET)
+        throw std::invalid_argument ("Wrong fty-proto type");
+    return std::unique_ptr<BasicAsset>(new BasicAsset (
+        fty_proto_name (msg),
+        fty_proto_aux_string (msg, "status", "active"),
+        fty_proto_aux_string (msg, "type", ""),
+        fty_proto_aux_string (msg, "subtype", "")));
+}
+
+std::unique_ptr<ExtendedAsset> getExtendedAssetFromFtyProto (fty_proto_t *msg) {
+    if (fty_proto_id (msg) != FTY_PROTO_ASSET)
+        throw std::invalid_argument ("Wrong fty-proto type");
+    return std::unique_ptr<ExtendedAsset>(new ExtendedAsset (
+        fty_proto_name (msg),
+        fty_proto_aux_string (msg, "status", "active"),
+        fty_proto_aux_string (msg, "type", ""),
+        fty_proto_aux_string (msg, "subtype", ""),
+        fty_proto_ext_string (msg, "name", fty_proto_name (msg)),
+        fty_proto_aux_string (msg, "parent_name.1", ""),
+        fty_proto_aux_number (msg, "priority", 5)));
+}
+
+std::unique_ptr<FullAsset> getFullAssetFromFtyProto (fty_proto_t *msg) {
+    if (fty_proto_id (msg) != FTY_PROTO_ASSET)
+        throw std::invalid_argument ("Wrong fty-proto type");
+        zhash_t *aux = fty_proto_aux (msg);
+        zhash_t *ext = fty_proto_ext (msg);
+    return std::unique_ptr<FullAsset>(new FullAsset (
+        fty_proto_name (msg),
+        fty_proto_aux_string (msg, "status", "active"),
+        fty_proto_aux_string (msg, "type", ""),
+        fty_proto_aux_string (msg, "subtype", ""),
+        fty_proto_ext_string (msg, "name", fty_proto_name (msg)),
+        fty_proto_aux_string (msg, "parent_name.1", ""),
+        fty_proto_aux_number (msg, "priority", 5),
+        MlmUtils::zhash_to_map (aux),
+        MlmUtils::zhash_to_map (ext)));
+}
+
+//  --------------------------------------------------------------------------
+//  Self test of this class
+
+// If your selftest reads SCMed fixture data, please keep it in
+// src/selftest-ro; if your test creates filesystem objects, please
+// do so under src/selftest-rw.
+// The following pattern is suggested for C selftest code:
+//    char *filename = NULL;
+//    filename = zsys_sprintf ("%s/%s", SELFTEST_DIR_RO, "mytemplate.file");
+//    assert (filename);
+//    ... use the "filename" for I/O ...
+//    zstr_free (&filename);
+// This way the same "filename" variable can be reused for many subtests.
+#define SELFTEST_DIR_RO "src/selftest-ro"
+#define SELFTEST_DIR_RW "src/selftest-rw"
+
+void
+asset_test (bool verbose)
+{
+    printf (" * asset: ");
+
+    try {
+        //BasicAsset a; // this causes g++ error, as expected
+        BasicAsset b ("id-1", "active", "device", "rackcontroller");
+        assert (b.getId () == "id-1");
+        assert (b.getStatus () == BasicAsset::Status::Active);
+        assert (b.getType () == BasicAsset::Type::Type_Device);
+        assert (b.getSubtype () == BasicAsset::Subtype::Subtype_RackController);
+        assert (b.getStatusString () == "active");
+        assert (b.getTypeString () == "device");
+        assert (b.getSubtypeString () == "rackcontroller");
+        b.setStatus ("nonactive");
+        assert (b.getStatus () == BasicAsset::Status::Nonactive);
+        b.setType ("vm");
+        assert (b.getType () == BasicAsset::Type::Type_VM);
+        b.setSubtype ("vmwarevm");
+        assert (b.getSubtype () == BasicAsset::Subtype::Subtype_VMWareVM);
+        BasicAsset bb (b);
+        assert (b == bb);
+        assert (bb.getId () == "id-1");
+        assert (bb.getType () == BasicAsset::Type::Type_VM);
+        bb.setType ("device");
+        assert (bb.getType () == BasicAsset::Type::Type_Device);
+        assert (b.getType () == BasicAsset::Type::Type_VM);
+        assert (b != bb);
+    } catch (std::exception &e) {
+        assert (false); // exception not expected
+    }
+    try {
+        BasicAsset c ("id-2", "invalid", "device", "rackcontroller");
+        assert (false); // exception expected
+    } catch (std::exception &e) {
+        // exception is expected
+    }
+    try {
+        BasicAsset d ("id-3", "active", "invalid", "rackcontroller");
+        assert (false); // exception expected
+    } catch (std::exception &e) {
+        // exception is expected
+    }
+    try {
+        BasicAsset e ("id-4", "active", "device", "invalid");
+        assert (false); // exception expected
+    } catch (std::exception &e) {
+        // exception is expected
+    }
+    try {
+        ExtendedAsset f ("id-5", "active", "device", "rackcontroller", "MyRack", "id-1", 1);
+        assert (f.getName () == "MyRack");
+        assert (f.getParentId () == "id-1");
+        assert (f.getPriority () == 1);
+        assert (f.getPriorityString () == "P1");
+        ExtendedAsset g ("id-6", "active", "device", "rackcontroller", "MyRack", "parent-1", "P2");
+        assert (f != g);
+        assert (g.getPriority () == 2);
+        assert (g.getPriorityString () == "P2");
+        g.setName ("MyNewRack");
+        assert (g.getName () == "MyNewRack");
+        g.setParentId ("parent-2");
+        assert (g.getParentId () == "parent-2");
+        g.setPriority ("P3");
+        assert (g.getPriority () == 3);
+        g.setPriority (4);
+        assert (g.getPriority () == 4);
+        ExtendedAsset gg (g);
+        assert (g == gg);
+        assert (gg.getId () == "id-6");
+        assert (gg.getName () == "MyNewRack");
+        gg.setName ("MyOldRack");
+        assert (gg.getName () == "MyOldRack");
+        assert (g.getName () == "MyNewRack");
+        assert (g != gg);
+    } catch (std::exception &e) {
+        assert (false); // exception not expected
+    }
+    try {
+        FullAsset h ("id-7", "active", "device", "rackcontroller", "MyRack", "id-1", 1, {{"aux1", "aval1"},
+                {"aux2", "aval2"}}, {});
+        assert (h.getAuxItem ("aux2") == "aval2");
+        assert (h.getAuxItem ("aval3").empty ());
+        assert (h.getExtItem ("eval1").empty ());
+        h.setAuxItem ("aux4", "aval4");
+        assert (h.getAuxItem ("aux4") == "aval4");
+        h.setExtItem ("ext5", "eval5");
+        assert (h.getExtItem ("ext5") == "eval5");
+        h.setExt ({{"ext1", "eval1"}});
+        assert (h.getExtItem ("ext1") == "eval1");
+        assert (h.getExtItem ("ext5") != "eval5");
+        assert (h.getItem ("aux2") == "aval2");
+        assert (h.getItem ("ext1") == "eval1");
+        assert (h.getItem ("notthere").empty ());
+        FullAsset hh (h);
+        assert (h == hh);
+        assert (hh.getExtItem ("ext1") == "eval1");
+        assert (hh.getExtItem ("ext6").empty ());
+        hh.setExtItem ("ext6", "eval6");
+        assert (hh.getExtItem ("ext6") == "eval6");
+        assert (h.getExtItem ("ext6").empty ());
+        assert (h != hh);
+    } catch (std::exception &e) {
+        assert (false); // exception not expected
+    }
+
+    printf ("OK\n");
 }

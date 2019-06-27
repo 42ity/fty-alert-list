@@ -69,28 +69,33 @@ AlertList::filter_alerts_for_publishing
     for (auto alert : filtered_alerts) {
         int sep = alert.id().find ('@');
         std::string name = alert.id().substr (sep+1);
-        std::shared_ptr<FullAsset> asset = FullAssetDatabase::getInstance ().getAsset (name);
+        try {
+            std::string logical_asset_name, logical_asset_ename, normal_state, port;
+            std::shared_ptr<FullAsset> asset = FullAssetDatabase::getInstance ().getAsset (name);
+            std::string ename = asset->getName ();
+            if (asset->getTypeString () == "device" && asset->getSubtypeString () == "sensorgpio") {
+                logical_asset_name = asset->getAuxItem ("logical_asset");
+                if (logical_asset_name.empty ())
+                    logical_asset_name = asset->getParentId ();
+                std::shared_ptr<FullAsset> logical_asset = FullAssetDatabase::getInstance ().getAsset (logical_asset_name);
+                logical_asset_ename = logical_asset->getName ();
+                normal_state = asset->getExtItem ("normal_state");
+                port = asset->getExtItem ("port");
+            }
 
-        std::string ename = asset->getName ();
-        std::string logical_asset_name, logical_asset_ename, normal_state, port;
-        if (asset->getTypeString () == "device" && asset->getSubtypeString () == "sensorgpio") {
-            logical_asset_name = asset->getAuxItem ("logical_asset");
-            if (logical_asset_name.empty ())
-                logical_asset_name = asset->getParentId ();
-            std::shared_ptr<FullAsset> logical_asset = FullAssetDatabase::getInstance ().getAsset (logical_asset_name);
-            logical_asset_ename = logical_asset->getName ();
-            normal_state = asset->getExtItem ("normal_state");
-            port = asset->getExtItem ("port");
+            zmsg_t *fty_alert = alert.toFtyProto (
+                    ename,
+                    logical_asset_name,
+                    logical_asset_ename,
+                    normal_state,
+                    port
+                    );
+            zmsg_addmsg (msg, &fty_alert);
+        } catch (std::exception &e) {
+            log_error ("Unable to get asset data due to :", e.what ());
+        } catch (...) {
+            log_error ("Unable to get asset data due to : unknown error");
         }
-
-        zmsg_t *fty_alert = alert.toFtyProto (
-                ename,
-                logical_asset_name,
-                logical_asset_ename,
-                normal_state,
-                port
-                );
-        zmsg_addmsg (msg, &fty_alert);
     }
 }
 
@@ -262,8 +267,24 @@ AlertList::process_stream (zmsg_t *msg)
     else if (fty_proto_id (fty_msg) == FTY_PROTO_ASSET) {
         fty_proto_print (fty_msg);
         if (streq (fty_proto_operation (fty_msg), FTY_PROTO_ASSET_OP_CREATE) || streq (fty_proto_operation (fty_msg), FTY_PROTO_ASSET_OP_UPDATE)) {
-            FullAsset asset(fty_msg);
-            FullAssetDatabase::getInstance ().insertOrUpdateAsset (asset);
+            try {
+                FullAsset asset(fty_msg);
+                FullAssetDatabase::getInstance ().insertOrUpdateAsset (asset);
+            } catch (std::exception &e) {
+                log_error ("Unable to create/update asset due to :", e.what ());
+            } catch (...) {
+                log_error ("Unable to create/update asset due to : unknown error");
+            }
+            fty_proto_destroy (&fty_msg);
+        }
+        else if (streq (fty_proto_operation (fty_msg),  FTY_PROTO_ASSET_OP_DELETE)){
+            try {
+                FullAssetDatabase::getInstance ().deleteAsset (fty_proto_name (fty_msg));
+            } catch (std::exception &e) {
+                log_error ("Unable to delete asset due to :", e.what ());
+            } catch (...) {
+                log_error ("Unable to delete asset due to : unknown error");
+            }
             fty_proto_destroy (&fty_msg);
         }
     }

@@ -1,12 +1,43 @@
-#ifndef __ASSET_GUARD__
-#define __ASSET_GUARD__
+/*  =========================================================================
+    asset - Asset class
+
+    Copyright (C) 2019 - 2019 Eaton
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    =========================================================================
+*/
+
+#ifndef ASSET_H_INCLUDED
+#define ASSET_H_INCLUDED
 
 #include <stdexcept>
 #include <map>
 #include <string>
 #include <cstdint>
-#include "fty_proto.h"
-#include "fty_common_mlm_utils.h"
+#include <fty_proto.h>
+#include <fty_common_mlm.h>
+
+#include "fty_alert_list_library.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * \brief Class that provides C++ interface for assets
@@ -16,7 +47,7 @@ class BasicAsset {
     public:
         /// List of valid asset statuses
         enum Status {
-            Active, Nonactive, Spare
+            Active, Nonactive
         };
         /// List of valid asset types
         enum Type {
@@ -63,7 +94,7 @@ class BasicAsset {
         // ctors, dtors, =
         BasicAsset (std::string id, std::string status, std::string type, std::string subtype) :
                 id_(id), status_(stringToStatus (status)),
-                type_subtype_(std::make_pair (stringToType (type), stringToSubtype (subtype))) { };
+                type_subtype_(std::make_pair (stringToType (type), stringToSubtype (subtype))) { }
         BasicAsset (fty_proto_t *msg)
         {
             if (fty_proto_id (msg) != FTY_PROTO_ASSET)
@@ -82,21 +113,22 @@ class BasicAsset {
         BasicAsset & operator= (BasicAsset && asset) = default;
         virtual ~BasicAsset () = default;
         // handling
-        /// simplified equality check
-        bool operator== (const BasicAsset &asset) const { return asset.id_ == id_; };
-        /// comparator for full equality check
-        bool compare (const BasicAsset &asset) const;
+        /// full equality check
+        bool operator== (const BasicAsset &asset) const;
+        bool operator!= (const BasicAsset &asset) const { return !(*this == asset); }
+        /// comparator for simplified equality check
+        bool compare (const BasicAsset &asset) const { return asset.id_ == id_; }
         // getters/setters
-        std::string getId () const { return id_; };
-        Status getStatus () const { return status_; };
-        std::string getStatusString () const { return statusToString (status_); };
-        Type getType () const { return type_subtype_.first; };
-        std::string getTypeString () const { return typeToString (type_subtype_.first); };
-        Subtype getSubtype () const { return type_subtype_.second; };
-        std::string getSubtypeString () const { return subtypeToString (type_subtype_.second); };
-        void setStatus (const std::string status) { status_ = stringToStatus (status); };
-        void setType (const std::string type) { type_subtype_.first = stringToType (type); };
-        void setSubtype (const std::string subtype) { type_subtype_.second = stringToSubtype (subtype); };
+        std::string getId () const { return id_; }
+        Status getStatus () const { return status_; }
+        std::string getStatusString () const { return statusToString (status_); }
+        Type getType () const { return type_subtype_.first; }
+        std::string getTypeString () const { return typeToString (type_subtype_.first); }
+        Subtype getSubtype () const { return type_subtype_.second; }
+        std::string getSubtypeString () const { return subtypeToString (type_subtype_.second); }
+        void setStatus (const std::string status) { status_ = stringToStatus (status); }
+        void setType (const std::string type) { type_subtype_.first = stringToType (type); }
+        void setSubtype (const std::string subtype) { type_subtype_.second = stringToSubtype (subtype); }
 };
 
 /// extends basic asset with location and user identification and priority
@@ -112,12 +144,12 @@ class ExtendedAsset : public BasicAsset {
         // ctors, dtors, =
         ExtendedAsset (std::string id, std::string status, std::string type, std::string subtype, std::string name,
                 std::string parent_id, int priority) : BasicAsset (id, status, type, subtype), name_(name),
-                parent_id_(parent_id), priority_(priority) { };
+                parent_id_(parent_id), priority_(priority) { }
         ExtendedAsset (std::string id, std::string status, std::string type, std::string subtype, std::string name,
                 std::string parent_id, std::string priority) : BasicAsset (id, status, type, subtype), name_(name),
                 parent_id_(parent_id) {
                 setPriority (priority);
-            };
+            }
         ExtendedAsset (fty_proto_t *msg): BasicAsset (msg)
         {
             name_ = fty_proto_ext_string (msg, "name", fty_proto_name (msg));
@@ -131,15 +163,16 @@ class ExtendedAsset : public BasicAsset {
         ExtendedAsset & operator= (ExtendedAsset && asset) = default;
         virtual ~ExtendedAsset () = default;
         // handling
-        bool compare (const ExtendedAsset &asset) const;
+        bool operator== (const ExtendedAsset &asset) const;
+        bool operator!= (const ExtendedAsset &asset) const { return !(*this == asset); }
         // getters/setters
-        std::string getName () const { return name_; };
-        std::string getParentId () const { return parent_id_; };
-        std::string getPriorityString () const { return std::string ("P") + std::to_string (priority_); };
-        int getPriority () const { return priority_; };
-        void setName (const std::string name) { name_ = name; };
-        void setParentId (const std::string parent_id) { parent_id_ = parent_id; };
-        void setPriority (int priority) { priority_ = priority; };
+        std::string getName () const { return name_; }
+        std::string getParentId () const { return parent_id_; }
+        std::string getPriorityString () const { return std::string ("P") + std::to_string (priority_); }
+        int getPriority () const { return priority_; }
+        void setName (const std::string name) { name_ = name; }
+        void setParentId (const std::string parent_id) { parent_id_ = parent_id; }
+        void setPriority (int priority) { priority_ = priority; }
         void setPriority (const std::string priority);
 };
 
@@ -156,12 +189,13 @@ class FullAsset : public ExtendedAsset {
         // ctors, dtors, =
         FullAsset (std::string id, std::string status, std::string type, std::string subtype, std::string name,
                 std::string parent_id, int priority, HashMap aux, HashMap ext) :
-                ExtendedAsset (id, status, type, subtype, name, parent_id, priority), aux_(aux), ext_(ext) { };
+                ExtendedAsset (id, status, type, subtype, name, parent_id, priority), aux_(aux), ext_(ext) { }
         FullAsset (std::string id, std::string status, std::string type, std::string subtype, std::string name,
                 std::string parent_id, std::string priority, HashMap aux, HashMap ext) :
-                ExtendedAsset (id, status, type, subtype, name, parent_id, priority), aux_(aux), ext_(ext) { };
+                ExtendedAsset (id, status, type, subtype, name, parent_id, priority), aux_(aux), ext_(ext) { }
         FullAsset (fty_proto_t *msg): ExtendedAsset (msg)
         {
+            // get our own copies since zhash_to_map doesn't do copying
             zhash_t *aux = fty_proto_aux (msg);
             zhash_t *ext = fty_proto_ext (msg);
             aux_ = MlmUtils::zhash_to_map (aux);
@@ -174,18 +208,27 @@ class FullAsset : public ExtendedAsset {
         FullAsset & operator= (FullAsset && asset) = default;
         virtual ~FullAsset () = default;
         // handling
-        bool compare (const FullAsset &asset) const;
+        bool operator== (const FullAsset &asset) const;
+        bool operator!= (const FullAsset &asset) const { return !(*this == asset); }
         // getters/setters
-        HashMap getAux () const { return aux_; };
-        HashMap getExt () const { return ext_; };
-        void setAux (HashMap aux) { aux_ = aux; };
-        void setExt (HashMap ext) { ext_ = ext; };
+        HashMap getAux () const { return aux_; }
+        HashMap getExt () const { return ext_; }
+        void setAux (HashMap aux) { aux_ = aux; }
+        void setExt (HashMap ext) { ext_ = ext; }
         std::string getAuxItem (const std::string &key) const;
         std::string getExtItem (const std::string &key) const;
         /// get item from either aux or ext
         std::string getItem (const std::string &key) const;
-        void setAuxItem (const std::string &key, const std::string &value) { aux_[key] = value; };
-        void setExtItem (const std::string &key, const std::string &value) { ext_[key] = value; };
+        void setAuxItem (const std::string &key, const std::string &value) { aux_[key] = value; }
+        void setExtItem (const std::string &key, const std::string &value) { ext_[key] = value; }
 };
 
-#endif // __ASSET_GUARD__
+FTY_ALERT_LIST_EXPORT std::unique_ptr<BasicAsset>
+    getBasicAssetFromFtyProto (fty_proto_t *msg);
+
+FTY_ALERT_LIST_EXPORT std::unique_ptr<ExtendedAsset>
+    getExtendedAssetFromFtyProto (fty_proto_t *msg);
+
+FTY_ALERT_LIST_EXPORT std::unique_ptr<FullAsset>
+    getFullAssetFromFtyProto (fty_proto_t *msg);
+#endif

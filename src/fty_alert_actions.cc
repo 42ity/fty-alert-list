@@ -262,7 +262,14 @@ get_alert_interval(s_alert_cache *alert_cache, uint64_t override_time = 0)
         return override_time;
     }
     std::string severity = fty_proto_severity(alert_cache->alert_msg);
-    std::string priority ( FullAssetDatabase::getInstance().getAsset (alert_cache->related_asset)->getAuxItem ("priority"));
+    std::string priority;
+    try {
+        priority = FullAssetDatabase::getInstance().getAsset (alert_cache->related_asset)->getAuxItem ("priority");
+    } catch (std::exception &e) {
+        log_error ("Unable to get asset data due to :", e.what ());
+    } catch (...) {
+        log_error ("Unable to get asset data due to : unknown error");
+    }
     std::pair <std::string, std::string> key = {severity, priority};
     auto it = times.find(key);
     if (it != times.end()) {
@@ -280,9 +287,9 @@ get_alert_interval(s_alert_cache *alert_cache, uint64_t override_time = 0)
 s_alert_cache *
 new_alert_cache_item(fty_alert_actions_t *self, fty_proto_t *msg)
 {
-    assert(self);
-    assert(msg);
-    assert(fty_proto_name(msg));
+    //assert(self);
+    //assert(msg);
+    //assert(fty_proto_name(msg));
     s_alert_cache *c = (s_alert_cache *) malloc(sizeof (s_alert_cache));
     c->alert_msg = msg;
     c->last_notification = zclock_mono ();
@@ -290,41 +297,60 @@ new_alert_cache_item(fty_alert_actions_t *self, fty_proto_t *msg)
     c->related_asset = strdup (fty_proto_name (msg));
     log_debug ("searching for %s", fty_proto_name (msg));
 
-    if (nullptr == FullAssetDatabase::getInstance ().getAsset (fty_proto_name (msg)) && !self->integration_test) {
-        // we don't know an asset we receieved alert about, ask fty-asset about it
-        log_debug ("ask ASSET AGENT for ASSET_DETAIL about %s", fty_proto_name(msg));
-        zuuid_t *uuid = zuuid_new ();
-        mlm_client_sendtox (self->requestreply_client, FTY_ASSET_AGENT_ADDRESS, "ASSET_DETAIL", "GET",
-                zuuid_str_canonical (uuid), fty_proto_name(msg), NULL);
-        void *which = zpoller_wait (self->requestreply_poller, self->requestreply_timeout);
-        if (which == NULL) {
-            log_warning("no response from ASSET AGENT, ignoring this alert.");
-            free(c);
-            c = NULL;
-        } else {
-            zmsg_t *reply_msg = mlm_client_recv (self->requestreply_client);
-            char *rcv_uuid = zmsg_popstr (reply_msg);
-            if (0 == strcmp (rcv_uuid, zuuid_str_canonical (uuid)) && fty_proto_is (reply_msg)) {
-                log_debug("received alert for unknown asset, asked for it and was successful.");
-                fty_proto_t *reply_proto_msg = fty_proto_decode (&reply_msg);
-                s_handle_stream_deliver_asset (self, &reply_proto_msg, mlm_client_subject (self->client));
-                FullAsset related_asset (reply_proto_msg);
-                FullAssetDatabase::getInstance ().insertOrUpdateAsset (related_asset);
-                fty_proto_destroy (&reply_proto_msg);
-            }
-            else {
-                log_warning("received alert for unknown asset, ignoring.");
-                if (reply_msg) {
-                    zmsg_destroy(&reply_msg);
-                }
+    std::shared_ptr<FullAsset> full_asset;
+    try {
+        full_asset = FullAssetDatabase::getInstance ().getAsset (fty_proto_name (msg));
+    }
+    catch (element_not_found &e) {
+        if (!self->integration_test) {
+            // we don't know an asset we receieved alert about, ask fty-asset about it
+            log_debug ("ask ASSET AGENT for ASSET_DETAIL about %s", fty_proto_name(msg));
+            zuuid_t *uuid = zuuid_new ();
+            mlm_client_sendtox (self->requestreply_client, FTY_ASSET_AGENT_ADDRESS, "ASSET_DETAIL", "GET",
+                    zuuid_str_canonical (uuid), fty_proto_name(msg), NULL);
+            void *which = zpoller_wait (self->requestreply_poller, self->requestreply_timeout);
+            if (which == NULL) {
+                log_warning("no response from ASSET AGENT, ignoring this alert.");
                 free(c);
                 c = NULL;
-                // msg will be destroyed by caller
             }
-            zstr_free(&rcv_uuid);
+            else {
+                zmsg_t *reply_msg = mlm_client_recv (self->requestreply_client);
+                char *rcv_uuid = zmsg_popstr (reply_msg);
+                if (0 == strcmp (rcv_uuid, zuuid_str_canonical (uuid)) && fty_proto_is (reply_msg)) {
+                    log_debug("received alert for unknown asset, asked for it and was successful.");
+                    fty_proto_t *reply_proto_msg = fty_proto_decode (&reply_msg);
+                    try {
+                        FullAsset related_asset (reply_proto_msg);
+                        FullAssetDatabase::getInstance ().insertOrUpdateAsset (related_asset);
+                    }
+                    catch (std::exception &e) {
+                        log_error ("Unable to insert/update asset due to :", e.what ());
+                    }
+                    catch (...) {
+                        log_error ("Unable to insert/update asset due to : unknown error");
+                    }
+                    s_handle_stream_deliver_asset (self, &reply_proto_msg, mlm_client_subject (self->client));
+                    //fty_proto_destroy (&reply_proto_msg);
+                }
+                else {
+                    log_warning("received alert for unknown asset, ignoring.");
+                    if (reply_msg) {
+                        zmsg_destroy(&reply_msg);
+                    }
+                    free(c);
+                    c = NULL;
+                    // msg will be destroyed by caller
+                }
+                zstr_free(&rcv_uuid);
+            }
+            zuuid_destroy (&uuid);
         }
-        zuuid_destroy (&uuid);
     }
+    catch (...) {
+        log_error ("Unable to get asset %s due to unknown error", fty_proto_name (msg));
+    }
+
     return c;
 }
 
@@ -351,32 +377,38 @@ send_email(fty_alert_actions_t *self, s_alert_cache *alert_item, char action_ema
     fty_proto_t *alert_dup = fty_proto_dup(alert_item->alert_msg);
     zmsg_t *email_msg = fty_proto_encode(&alert_dup);
     zuuid_t *uuid = zuuid_new ();
-    char *subject = NULL;
-    std::string sname = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("name");
-    if (EMAIL_ACTION_VALUE == action_email) {
-        std::string contact_email = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("contact_email");
-        zmsg_pushstr (email_msg, contact_email.c_str ());
-        subject = (char *) "SENDMAIL_ALERT";
-    } else {
-        std::string contact_phone = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("contact_phone");
-        zmsg_pushstr (email_msg, contact_phone.c_str ());
-        subject = (char *) "SENDSMS_ALERT";
+
+    std::string sname, contact, priority, subject;
+    try {
+        sname = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("name");
+        if (EMAIL_ACTION_VALUE == action_email) {
+            contact = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("contact_email");
+            subject = "SENDMAIL_ALERT";
+        } else {
+            contact = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getExtItem ("contact_phone");
+            subject = "SENDSMS_ALERT";
+        }
+        priority = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getAuxItem ("priority");
+    } catch (std::exception &e) {
+        log_error ("Unable to get asset data due to :", e.what ());
+    } catch (...) {
+        log_error ("Unable to get asset data due to : unknown error");
     }
-    std::string priority = FullAssetDatabase::getInstance().getAsset (alert_item->related_asset)->getAuxItem ("priority");
+    zmsg_pushstr (email_msg, contact.c_str ());
     zmsg_pushstr (email_msg, sname.c_str ());
     zmsg_pushstr (email_msg, priority.c_str ());
     zmsg_pushstr (email_msg, zuuid_str_canonical (uuid));
     const char *address = (self->integration_test) ? FTY_EMAIL_AGENT_ADDRESS_TEST : FTY_EMAIL_AGENT_ADDRESS;
-    int rv = mlm_client_sendto (self->requestreply_client, address, subject, NULL, 5000, &email_msg);
+    int rv = mlm_client_sendto (self->requestreply_client, address, subject.c_str (), NULL, 5000, &email_msg);
     if (rv != 0) {
-        log_error ("cannot send %s message", subject);
+        log_error ("cannot send %s message", subject.c_str ());
         zuuid_destroy (&uuid);
         zmsg_destroy (&email_msg);
         return;
     }
     void *which = zpoller_wait (self->requestreply_poller, self->requestreply_timeout);
     if (which == NULL) {
-        log_error ("received no reply on %s message", subject);
+        log_error ("received no reply on %s message", subject.c_str ());
     } else {
         zmsg_t *reply_msg = mlm_client_recv (self->requestreply_client);
         char *rcv_uuid = zmsg_popstr (reply_msg);
@@ -384,12 +416,12 @@ send_email(fty_alert_actions_t *self, s_alert_cache *alert_item, char action_ema
             char *cmd = zmsg_popstr (reply_msg);
             if (0 != strcmp(cmd, "OK")) {
                 char *cause = zmsg_popstr (reply_msg);
-                log_error ("%s failed due to %s", subject, cause);
+                log_error ("%s failed due to %s", subject.c_str (), cause);
                 zstr_free(&cause);
             }
             zstr_free(&cmd);
         } else {
-            log_error ("received invalid reply on %s message", subject);
+            log_error ("received invalid reply on %s message", subject.c_str ());
         }
         zstr_free(&rcv_uuid);
         zmsg_destroy (&reply_msg);
@@ -773,73 +805,87 @@ s_handle_stream_deliver_asset(fty_alert_actions_t *self, fty_proto_t **asset_p, 
     }
     const char *operation = fty_proto_operation (asset);
     const char *assetname = fty_proto_name (asset);
+    log_error ("%s on %s",  operation, assetname);
 
     if (streq (operation, FTY_PROTO_ASSET_OP_DELETE)
     || !streq (fty_proto_aux_string (asset, FTY_PROTO_ASSET_STATUS, "active"), "active")) {
         log_debug("received delete for asset %s", assetname);
-        // TODO FIXME Since we can't delete now, just resolve alerts
+
         s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
         while (NULL != it) {
             if (streq (it->related_asset, assetname)) {
                 log_error ("%s", it->related_asset);
-                // delete all alerts related to deleted asset
+                // resolve & delete all alerts related to deleted asset
                 action_resolve(self, it);
                 zhash_delete(self->alerts_cache, zhash_cursor(self->alerts_cache));
             }
             it = (s_alert_cache *) zhash_next(self->alerts_cache);
         }
+
+        try {
+            FullAssetDatabase::getInstance ().deleteAsset (assetname);
+        } catch (std::exception &e) {
+            log_error ("Unable to delete asset due to :", e.what ());
+        } catch (...) {
+            log_error ("Unable to delete asset due to : unknown error");
+        }
+
         fty_proto_destroy (asset_p);
     }
     else if (streq (operation, FTY_PROTO_ASSET_OP_UPDATE)) {
         log_debug("received update for asset %s", assetname);
         FullAsset new_asset (asset);
-        if (nullptr != FullAssetDatabase::getInstance ().getAsset (assetname)) {
-            std::shared_ptr<FullAsset> old_asset = FullAssetDatabase::getInstance ().getAsset (assetname);
-            bool changed = false;
-            std::string old_contact_email = old_asset->getExtItem ("contact_email");
-            std::string old_contact_phone = old_asset->getExtItem ("contact_phone");
-            std::string new_contact_email = new_asset.getExtItem ("contact_email");
-            std::string new_contact_phone = new_asset.getExtItem ("contact_phone");
-            if (old_contact_email != new_contact_email || old_contact_phone != new_contact_phone ) {
-                changed = true;
-            }
-
-            if (changed) {
-                // simple workaround to handle alerts for assets changed during alert being active
-                log_debug("known asset was updated, resolving previous alert");
-                s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
-                while (NULL != it) {
-                    if (streq (it->related_asset, assetname)) {
-                        // just resolve, will be activated again
-                        action_resolve(self, it);
-                    }
-                    it = (s_alert_cache *) zhash_next(self->alerts_cache);
-                }
-            }
-
-            zhash_t *asset_ext = fty_proto_ext (asset);
-            auto tmp_ext = MlmUtils::zhash_to_map (asset_ext);
-            zhash_t *asset_aux= fty_proto_aux (asset);
-            auto tmp_aux = MlmUtils::zhash_to_map (asset_aux);
-            old_asset->setExt (tmp_ext);
-            old_asset->setAux (tmp_aux);
-
-            if (changed) {
-                log_debug("known asset was updated, sending notifications");
-                s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
-                while (NULL != it) {
-                    if (streq (it->related_asset, assetname)) {
-                        // force an alert since contact info changed
-                        action_alert(self, it);
-                    }
-                    it = (s_alert_cache *) zhash_next(self->alerts_cache);
-                }
-            }
-            fty_proto_destroy (asset_p);
-        }
-        else {
+        std::shared_ptr<FullAsset> old_asset;
+        try {
+            old_asset = FullAssetDatabase::getInstance ().getAsset (assetname);
+        } catch (std::exception &e) {
             FullAssetDatabase::getInstance().insertOrUpdateAsset (new_asset);
+            old_asset = FullAssetDatabase::getInstance ().getAsset (assetname);
+        } catch (...) {
+            log_error ("Unable to get asset data due to : unknown error");
         }
+
+        bool changed = false;
+        std::string old_contact_email = old_asset->getExtItem ("contact_email");
+        std::string old_contact_phone = old_asset->getExtItem ("contact_phone");
+        std::string new_contact_email = new_asset.getExtItem ("contact_email");
+        std::string new_contact_phone = new_asset.getExtItem ("contact_phone");
+        if (old_contact_email != new_contact_email || old_contact_phone != new_contact_phone ) {
+            changed = true;
+        }
+
+        if (changed) {
+            // simple workaround to handle alerts for assets changed during alert being active
+            log_debug("known asset was updated, resolving previous alert");
+            s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
+            while (NULL != it) {
+                if (streq (it->related_asset, assetname)) {
+                    // just resolve, will be activated again
+                    action_resolve(self, it);
+                }
+                it = (s_alert_cache *) zhash_next(self->alerts_cache);
+            }
+        }
+
+        /*zhash_t *asset_ext = fty_proto_get_ext (asset);
+        auto tmp_ext = MlmUtils::zhash_to_map (asset_ext);
+        zhash_t *asset_aux= fty_proto_get_aux (asset);
+        auto tmp_aux = MlmUtils::zhash_to_map (asset_aux);*/
+        old_asset->setExt (new_asset.getExt());
+        old_asset->setAux (new_asset.getAux());
+
+        if (changed) {
+            log_debug("known asset was updated, sending notifications");
+            s_alert_cache *it = (s_alert_cache *) zhash_first(self->alerts_cache);
+            while (NULL != it) {
+                if (streq (it->related_asset, assetname)) {
+                    // force an alert since contact info changed
+                    action_alert(self, it);
+                }
+                it = (s_alert_cache *) zhash_next(self->alerts_cache);
+            }
+        }
+        fty_proto_destroy (asset_p);
     }
     else {
         // 'create' is skipped because each is followed by an 'update'
@@ -1131,6 +1177,7 @@ fty_alert_actions_test (bool verbose)
         SET_SEND(0);
         fty_alert_actions_t *self = fty_alert_actions_new ();
         assert (self);
+
         fty_proto_t *msg = fty_proto_new(FTY_PROTO_ALERT);
         assert (msg);
         fty_proto_set_name(msg, "myasset-4");

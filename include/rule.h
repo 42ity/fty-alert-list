@@ -1,14 +1,44 @@
-#ifndef __RULE_GUARD__
-#define __RULE_GUARD__
+/*  =========================================================================
+    rule - Abstract rule class
+
+    Copyright (C) 2019 - 2019 Eaton
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    =========================================================================
+*/
+
+#ifndef RULE_H_INCLUDED
+#define RULE_H_INCLUDED
 
 #include <vector>
 #include <string>
 #include <map>
+#include <unordered_set>
 #include <memory>
 #include <cassert>
 #include <cxxtools/serializationinfo.h>
 #include <cxxtools/jsondeserializer.h>
 #include <fty_log.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 //  1  - equals
 //  0  - different
@@ -16,12 +46,25 @@
 int
 utf8eq (const std::string& s1, const std::string& s2);
 
-void
-si_getValueUtf8 (const cxxtools::SerializationInfo& si, const std::string& member_name, std::string& result);
+class missing_mandatory_item : public std::runtime_error {
+    public:
+        missing_mandatory_item (std::string item) : runtime_error ("missing mandatory item " + item) { }
+};
+class invalid_metrics_count : public std::runtime_error {
+    public:
+        invalid_metrics_count () : runtime_error ("invalid metrics count") { }
+};
+class unable_to_save : public std::runtime_error {
+    public:
+        unable_to_save () : runtime_error ("unable to save rule") { }
+};
 
 class InterfaceRule {
     public:
         typedef std::vector<std::string> VectorStrings;
+        typedef std::vector<std::vector<std::string>> VectorVectorStrings;
+        typedef std::map<std::string, std::string> MapStrings;
+        typedef std::unordered_set<std::string> SetStrings;
         /// identifies rule type
         virtual std::string whoami () const = 0;
         /*
@@ -33,6 +76,7 @@ class InterfaceRule {
          * \throw std::exception in case of evaluation failure
          */
         virtual VectorStrings evaluate (const VectorStrings &metrics) = 0;
+        virtual VectorVectorStrings evaluate (const MapStrings &active_metrics, const SetStrings &inactive_metrics) = 0;
         /// identifies rule with unique name
         std::string getName (void) const;
         /// returns a list of metrics in order in which evaluation expects them to be
@@ -128,8 +172,8 @@ class Rule : public InterfaceRule {
         std::string hierarchy_;
 
         //internal functions
-        void loadFromSerializedObject (const cxxtools::SerializationInfo &si);
-        void saveToSerializedObject (cxxtools::SerializationInfo &si) const;
+        virtual void loadFromSerializedObject (const cxxtools::SerializationInfo &si);
+        virtual void saveToSerializedObject (cxxtools::SerializationInfo &si) const;
         void loadMandatoryString (const cxxtools::SerializationInfo &si, const std::string name, std::string &target);
         void loadOptionalString (const cxxtools::SerializationInfo &si, const std::string name, std::string &target);
         void loadOptionalInt (const cxxtools::SerializationInfo &si, const std::string name, int &target);
@@ -143,12 +187,13 @@ class Rule : public InterfaceRule {
         Rule (const std::string name, const VectorStrings metrics, const VectorStrings assets,
                 const VectorStrings categories, const ResultsMap results) : name_(name), categories_(categories),
                 metrics_(metrics), results_(results), assets_(assets) { };
-        Rule (const cxxtools::SerializationInfo &si) { loadFromSerializedObject (si); };
         Rule (const std::string json);
         virtual ~Rule () {};
         // getters/setters
         /// get rule internal name
         std::string getName (void) const { return name_; }
+        /// set rule internal name
+        void setName (std::string name) { name_ = name; }
         /// get rule description (shorter string for user)
         std::string getRuleDescription (void) const { return description_; }
         /// set rule description (shorter string for user)
@@ -189,38 +234,22 @@ class Rule : public InterfaceRule {
         /// remove rule from persistence storage
         int remove (const std::string &path);
         /// full comparator
-        bool compare (const Rule &rule) const;
+        bool operator == (const Rule &rule) const;
         // friends
-        friend void operator>>= (const cxxtools::SerializationInfo& si, Rule &rule);
+        friend void operator>>= (const cxxtools::SerializationInfo& si, Rule &rule); // support cxxtools deserialization
 };
 
-class RuleTest : public Rule {
-    public:
-        std::string whoami () const { return "test"; };
-        VectorStrings evaluate (const VectorStrings &metrics) { return VectorStrings{"eval"}; };
-        RuleTest (const std::string name, const VectorStrings metrics, const VectorStrings assets,
-                const VectorStrings categories, const ResultsMap results) : Rule (name, metrics, assets, categories,
-                results) { };
-        RuleTest (const cxxtools::SerializationInfo &si) : Rule (si) { };
-        RuleTest (const std::string json) : Rule (json) { };
-};
-
-class GenericRule : public Rule {
+class GenericRule final : public Rule {
+    private:
+         // evaluation on general rules is not allowed
+        VectorStrings evaluate (const VectorStrings &metrics);
+        VectorVectorStrings evaluate (const MapStrings &active_metrics, const SetStrings &inactive_metrics);
     public:
         std::string whoami () const { return rule_type_; };
-        VectorStrings evaluate (const VectorStrings &metrics) { return VectorStrings{"eval"}; };
         GenericRule (const std::string name, const VectorStrings metrics, const VectorStrings assets,
                 const VectorStrings categories, const ResultsMap results) : Rule (name, metrics, assets, categories,
-                results) { };
-        GenericRule (const cxxtools::SerializationInfo &si) : Rule (si) { };
-        GenericRule (const std::string json) : Rule (json) {
-            std::istringstream iss (json);
-            cxxtools::JsonDeserializer jd (iss);
-            cxxtools::SerializationInfo si;
-            jd.deserialize (si);
-            auto elem = si.getMember (0);
-            elem >>= rule_type_;
-        };
+                results), rule_type_("generic") { };
+        GenericRule (const std::string json);
     private:
         std::string rule_type_;
 };
@@ -248,4 +277,4 @@ private:
     std::string asset_;
 };
 
-#endif // __rule_guard__
+#endif
