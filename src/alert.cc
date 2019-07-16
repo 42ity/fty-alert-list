@@ -87,8 +87,8 @@ Alert::update (fty_proto_t *msg)
     }
     if (m_Ctime == 0) {
         m_Ctime = fty_proto_time (msg);
-        m_Mtime = fty_proto_time (msg);
     }
+    m_Mtime = fty_proto_time (msg);
     m_Ttl = fty_proto_ttl (msg);
     if (m_Results == nullptr) {
         log_debug ("Results are null for rule %s",  m_Rule.c_str ());
