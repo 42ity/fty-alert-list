@@ -479,7 +479,7 @@ AlertList::process_mailbox (zmsg_t *msg)
     if (streq (cmd, "LISTALL") || streq (cmd, "LIST")) {
         reply = process_LIST (msg, subject, cmd.get (), correlation_id.get ());
     }
-    else if (streq (cmd, "ADD")) {
+    else if (streq (cmd, "ADD") || streq (cmd, "UPDATE")) {
         reply = zmsg_new ();
         ZstrGuard rule (zmsg_popstr (msg));
         std::string rule_id = handle_rule (rule.get ());
@@ -712,6 +712,35 @@ alert_list_test (bool verbose)
     zstr_free (&str);
     zmsg_destroy (&reply);
 
+    // update rule
+    rule_msg = zmsg_new ();
+    uuid = zuuid_new ();
+    zmsg_addstr (rule_msg, zuuid_str_canonical (uuid));
+    zmsg_addstr (rule_msg, "UPDATE");
+    rule_json = std::string ("{\"test\":{\"name\":\"average.mana@testdatacenter\",\"categories\":[\"CAT_ALL\"],\"metrics\":[\"");
+    rule_json += "average.mana1\"],\"results\":[{\"ok\":{\"action\":[],\"severity\":\"CRITICAL\",\"description\":\"";
+    rule_json += "ok_description for __ename__\",\"threshold_name\":\"\"}}, {\"high_critical\":{\"action\":[\"SMS\"],\"severity\":\"";
+    rule_json += "CRITICAL\",\"description\":\"critical_high_description for __ename__\",\"threshold_name\":\"\"}}],\"assets\":[\"";
+    rule_json += "testdatacenter\"],\"values\":[{\"var1\":\"val1\"},{\"var2\":\"val2\"}]}}";
+    zmsg_addstr (rule_msg, rule_json.c_str ());
+    zmsg_addstr (rule_msg, "average.mana@testdatacenter");
+    rv = mlm_client_sendto (ui, alert_list_test_address, "rule-handling", NULL, 5000, &rule_msg);
+    assert (rv == 0);
+
+    reply = mlm_client_recv (ui);
+    assert (reply != NULL);
+    str = zmsg_popstr (reply);
+    assert (streq (str, zuuid_str_canonical (uuid)));
+    zstr_free (&str);
+    str = zmsg_popstr (reply);
+    assert (streq (str, "OK"));
+    zstr_free (&str);
+    zuuid_destroy (&uuid);
+    str = zmsg_popstr (reply);
+    assert (streq (str, "average.mana@testdatacenter"));
+    zstr_free (&str);
+    zmsg_destroy (&reply);
+
     // send ACTIVE alert
     zhash_t *alert_aux = zhash_new ();
     zhash_autofree (alert_aux);
@@ -772,7 +801,7 @@ alert_list_test (bool verbose)
     assert (streq (fty_proto_state (fty_tmp), "ACTIVE"));
     assert (streq (fty_proto_description (fty_tmp), "critical_high_description for DC-Roztoky"));
     zlist_t *fty_alert_msg_actions = fty_proto_action (fty_tmp);
-    assert (streq ((const char *) zlist_first (fty_alert_msg_actions), "EMAIL"));
+    assert (streq ((const char *) zlist_first (fty_alert_msg_actions), "SMS"));
     fty_proto_destroy (&fty_tmp);
 
     tmp = zmsg_popmsg (listall_reply);
@@ -813,7 +842,7 @@ alert_list_test (bool verbose)
     assert (streq (fty_proto_state (fty_tmp), "ACTIVE"));
     assert (streq (fty_proto_description (fty_tmp), "critical_high_description for DC-Roztoky"));
     fty_alert_msg_actions = fty_proto_action (fty_tmp);
-    assert (streq ((const char *) zlist_first (fty_alert_msg_actions), "EMAIL"));
+    assert (streq ((const char *) zlist_first (fty_alert_msg_actions), "SMS"));
     fty_proto_destroy (&fty_tmp);
 
     tmp = zmsg_popmsg (list_reply);
