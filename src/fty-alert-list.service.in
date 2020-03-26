@@ -9,6 +9,9 @@ After=fty-license-accepted.target
 Wants=fty-license-accepted.target
 Requisite=fty-license-accepted.target
 
+Wants=fty-alert-engine.service
+After=fty-alert-engine.service
+
 PartOf=bios.target
 
 [Service]
