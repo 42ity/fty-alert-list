@@ -132,6 +132,16 @@ s_handle_stream_deliver (mlm_client_t *client, zmsg_t** msg_p, zhash_t *expirati
         return;
     }
 
+    // **don't** handle alerts on cops (exclusively dedicated to automation)
+    {
+        const char* assetName = fty_proto_name (newAlert);
+        if (assetName && (strstr(assetName, "cops-") == assetName)) {
+            log_debug ("drop %s", fty_proto_rule(newAlert));
+            fty_proto_destroy (&newAlert);
+            return;
+        }
+    }
+
     // handle *only* ACTIVE or RESOLVED alerts
     if (!streq (fty_proto_state (newAlert), "ACTIVE") &&
             !streq (fty_proto_state (newAlert), "RESOLVED")) {
