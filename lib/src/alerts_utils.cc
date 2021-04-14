@@ -26,9 +26,9 @@
 @end
  */
 
-#include <string>
-#include <fty_common_utf8.h>
 #include "fty_alert_list_classes.h"
+
+#include <string>
 
 // encode a c-string S (z85 encoding)
 // returns the encoded buffer (c-string)
@@ -522,6 +522,9 @@ alert_new(const char *rule,
 
 void
 alerts_utils_test(bool verbose) {
+
+    #define SELFTEST_RO "selftest-ro"
+    #define SELFTEST_RW "selftest-rw"
 
     //  @selftest
 
@@ -1580,7 +1583,7 @@ alerts_utils_test(bool verbose) {
         zlistx_add_end(alerts, alert);
         fty_proto_destroy(&alert);
 
-        int rv = alert_save_state(alerts, ".", "test_state_file", true);
+        int rv = alert_save_state(alerts, SELFTEST_RW, "test_state_file", true);
         assert(rv == 0);
 
         zlistx_destroy(&alerts);
@@ -1589,7 +1592,7 @@ alerts_utils_test(bool verbose) {
         assert(alerts2);
         zlistx_set_destructor(alerts2, (czmq_destructor *) fty_proto_destroy);
         //zlistx_set_duplicator(alerts2, (czmq_duplicator *) fty_proto_dup);
-        rv = alert_load_state(alerts2, ".", "test_state_file");
+        rv = alert_load_state(alerts2, SELFTEST_RW, "test_state_file");
         assert(rv == 0);
 
         log_debug("zlistx size == %d", zlistx_size(alerts2));
@@ -1674,7 +1677,7 @@ alerts_utils_test(bool verbose) {
         if (NULL != actions6)
             zlist_destroy(&actions6);
 
-        zsys_file_delete ("./test_state_file");
+        //zsys_file_delete (SELFTEST_RW"/test_state_file");
     }
 
     // Test case #2:
@@ -1684,20 +1687,21 @@ alerts_utils_test(bool verbose) {
         assert(alerts);
         zlistx_set_destructor(alerts, (czmq_destructor *) fty_proto_destroy);
         zlistx_set_duplicator(alerts, (czmq_duplicator *) fty_proto_dup);
-        int rv = alert_load_state(alerts, ".", "does_not_exist");
+        int rv = alert_load_state(alerts, SELFTEST_RO, "does_not_exist");
         assert(rv == -1);
         zlistx_destroy(&alerts);
     }
+
     // State file with old format
     {
-    zlistx_t *alerts = zlistx_new ();
-    assert (alerts);
-    zlistx_set_destructor (alerts, (czmq_destructor *) fty_proto_destroy);
-    zlistx_set_duplicator (alerts, (czmq_duplicator *) fty_proto_dup);
-    int rv = alert_load_state (alerts, "src/selftest-ro", "old_state_file");
-    assert (rv == 0);
-    assert (zlistx_size(alerts) == 0);
-    zlistx_destroy (&alerts);
+        zlistx_t *alerts = zlistx_new ();
+        assert (alerts);
+        zlistx_set_destructor (alerts, (czmq_destructor *) fty_proto_destroy);
+        zlistx_set_duplicator (alerts, (czmq_duplicator *) fty_proto_dup);
+        int rv = alert_load_state (alerts, SELFTEST_RO, "old_state_file");
+        assert (rv == 0);
+        assert (zlistx_size(alerts) == 0);
+        zlistx_destroy (&alerts);
     }
 
     //  @end

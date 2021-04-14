@@ -132,27 +132,19 @@ The software maintains three main types of information divided to three streams
 #define BIOS_PROTO_ALERT                    2
 #define BIOS_PROTO_ASSET                    3
 
-#include <czmq.h>
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //  Opaque class structure
 #ifndef BIOS_PROTO_T_DEFINED
 typedef struct _bios_proto_t bios_proto_t;
 #define BIOS_PROTO_T_DEFINED
 #endif
 
-//  @interface
-//  Create a new bios_proto
-bios_proto_t *
-    bios_proto_new (int id);
+#include <czmq.h>
 
-//  Destroy the bios_proto
-void
-    bios_proto_destroy (bios_proto_t **self_p);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//  @interface
 
 //  Parse a zmsg_t and decides whether it is bios_proto. Returns
 //  true if it is, false otherwise. Doesn't destroy or modify the

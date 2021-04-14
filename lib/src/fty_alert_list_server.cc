@@ -26,12 +26,11 @@
 @end
  */
 
+#include "fty_alert_list_classes.h"
+
 #include <string.h>
 #include <map>
 #include <mutex>
-#include <fty_common_macros.h>
-#include <fty_common_utf8.h>
-#include "fty_alert_list_classes.h"
 
 #define RFC_ALERTS_LIST_SUBJECT "rfc-alerts-list"
 #define RFC_ALERTS_ACKNOWLEDGE_SUBJECT  "rfc-alerts-acknowledge"
@@ -549,6 +548,8 @@ s_handle_mailbox_deliver (mlm_client_t *client, zmsg_t** msg_p) {
 
 void
 fty_alert_list_server_stream (zsock_t *pipe, void *args) {
+    log_info("Started");
+
     const char *endpoint = (const char *) args;
     log_debug ("Stream endpoint = %s", endpoint);
 
@@ -598,6 +599,8 @@ fty_alert_list_server_stream (zsock_t *pipe, void *args) {
     mlm_client_destroy (&client);
     zpoller_destroy (&poller);
     zhash_destroy (&expirations);
+
+    log_info("Ended");
 }
 
 void
@@ -651,17 +654,23 @@ void save_alerts () {
     log_debug ("alert_save_state () == %d", rv);
 }
 
-void
-init_alert (bool verb) {
+static void
+init_alert_private (const char *path, const char *filename, bool verb)
+{
     alerts = zlistx_new ();
     assert(alerts);
     zlistx_set_destructor (alerts, (czmq_destructor *) fty_proto_destroy);
     zlistx_set_duplicator (alerts, (czmq_duplicator *) fty_proto_dup);
 
-    int rv = alert_load_state (alerts, STATE_PATH, STATE_FILE);
+    int rv = alert_load_state (alerts, path, filename);
     log_debug ("alert_load_state () == %d", rv);
 
     verbose = verb;
+}
+
+void
+init_alert (bool verb) {
+    init_alert_private(STATE_PATH, STATE_FILE, verb);
 }
 
 void
@@ -977,6 +986,8 @@ test_alert_publish (mlm_client_t *producer, mlm_client_t *consumer, zlistx_t *al
 
 void
 fty_alert_list_server_test (bool verb) {
+    #define SELFTEST_RO "selftest-ro"
+
     verbose = verb;
     static const char* endpoint = "inproc://fty-lm-server-test";
 
@@ -1009,8 +1020,15 @@ fty_alert_list_server_test (bool verb) {
     rv = mlm_client_set_consumer (consumer, "ALERTS", ".*");
     assert (rv == 0);
 
-    // Alert Lists
-    init_alert (verb);
+    // *before* initAlerts()
+    // we must cleanup persisted alerts /var/lib/fty/fty-alert-list/state_file
+    {
+        std::string persistedAlerts{std::string(STATE_PATH) + "/" + std::string(STATE_FILE)};
+        unlink(persistedAlerts.c_str());
+    }
+
+    // Alert Lists (assume empty)
+    init_alert_private (SELFTEST_RO, "_faked_empty_alerts_", verb);
     zactor_t *fty_al_server_stream = zactor_new (fty_alert_list_server_stream, (void *) endpoint);
     zactor_t *fty_al_server_mailbox = zactor_new (fty_alert_list_server_mailbox, (void *) endpoint);
 

@@ -22,13 +22,16 @@
 #ifndef ALERTS_UTILS_H_INCLUDED
 #define ALERTS_UTILS_H_INCLUDED
 
+#include <czmq.h>
+#include <fty_proto.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define ACTION_EMAIL  "EMAIL"
 #define ACTION_SMS    "SMS"
-    
+
 // load alert state from disk
 // 0 - success, -1 - error
 FTY_ALERT_LIST_EXPORT int
