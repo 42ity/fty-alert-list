@@ -67,11 +67,8 @@
 #   endif
 #endif
 
-//  Project has no stable classes, so we build the draft API
-#undef  FTY_ALERT_LIST_BUILD_DRAFT_API
-#define FTY_ALERT_LIST_BUILD_DRAFT_API
-
-#ifdef FTY_ALERT_LIST_BUILD_DRAFT_API
+#include <czmq.h>
+#include "../src/fty_alert_list_server.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -80,6 +77,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#endif // FTY_ALERT_LIST_BUILD_DRAFT_API
 
 #endif
