@@ -28,7 +28,7 @@ EnvironmentFile=-/etc/default/bios
 EnvironmentFile=-/etc/default/bios__%n.conf
 EnvironmentFile=-/etc/default/fty
 EnvironmentFile=-/etc/default/fty__%n.conf
-# var/lib/fty ('write 'state_file' file)
+# var/lib/fty (write 'state_file' file)
 ExecStartPre=+/bin/chown -R @AGENT_USER@ @AGENT_VAR_DIR@
 ExecStartPre=+/bin/chmod 771 @AGENT_VAR_DIR@
 # exec (no argument)

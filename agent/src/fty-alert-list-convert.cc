@@ -26,9 +26,13 @@
 @end
 */
 
-#include "fty_alert_list_classes.h"
+#include <czmq.h>
+#include <fty_proto.h>
+#include <fty_log.h>
 
-int
+#include "bios_proto.h"
+
+static int
 convert_file (const char *file_name, const char *old_path, const char *new_path)
 {
     assert (file_name);
@@ -197,6 +201,11 @@ convert_file (const char *file_name, const char *old_path, const char *new_path)
     return 0;
 }
 
+static void show_help (const char* processName) {
+    printf ("%s [file_name] [old_path] [new_path]\n", processName);
+    printf ("Converts bios_proto state file to fty_proto state file.\n");
+    printf ("  --help / -h            this information\n");
+}
 
 int main (int argc, char *argv [])
 {
@@ -204,15 +213,19 @@ int main (int argc, char *argv [])
     for (argn = 1; argn < argc; argn++) {
         if (streq (argv [argn], "--help")
         ||  streq (argv [argn], "-h")) {
-            puts ("fty-alert-list-convert [file_name] [old_path] [new_path]");
-            puts ("Converts bios_proto state file to fty_proto state file.");
-            puts ("  --help / -h            this information");
-            return 0;
+            show_help(argv [0]);
+            return EXIT_SUCCESS;
         }
     }
 
-    int rv = convert_file  (argv [1], argv [2], argv [3]);
+    if (argc != 4) {
+        log_error("Invalid arguments");
+        show_help(argv [0]);
+        return EXIT_FAILURE;
+    }
+
+    int rv = convert_file (argv [1], argv [2], argv [3]);
     assert (rv == 0);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

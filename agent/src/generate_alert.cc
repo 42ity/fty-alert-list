@@ -20,7 +20,9 @@
 */
 
 #include <czmq.h>
-#include "../include/fty-alert-list.h"
+#include <malamute.h>
+#include <fty_log.h>
+#include <fty_proto.h>
 
 int main (int argc, char **argv) {
     char *endpoint = NULL;

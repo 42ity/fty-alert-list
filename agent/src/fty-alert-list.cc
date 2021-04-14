@@ -25,6 +25,7 @@
 @discuss
 @end
  */
+
 #include <czmq.h>
 #include <fty_log.h>
 
