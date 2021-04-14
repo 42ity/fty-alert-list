@@ -98,7 +98,6 @@ int main(int argc, char *argv []) {
     zloop_timer(ttlcleanup_stream, 60 * 1000, 0, s_ttl_cleanup_timer, alert_list_server_stream);
     zloop_start(ttlcleanup_stream);
 
-    log_info("fty-alert-list started");
     while (!zsys_interrupted) {
         sleep(1000);
     }
