@@ -1,5 +1,5 @@
 [Unit]
-Description=fty-alert-list service
+Description=@PROJECT_NAME@ service
 Requires=network.target malamute.service
 After=network.target malamute.service
 
@@ -16,18 +16,23 @@ PartOf=bios.target
 
 [Service]
 Type=simple
-User=bios
+User=@AGENT_USER@
 Restart=always
-EnvironmentFile=-@prefix@/share/bios/etc/default/bios
-EnvironmentFile=-@prefix@/share/bios/etc/default/bios__%n.conf
-EnvironmentFile=-@prefix@/share/fty/etc/default/fty
-EnvironmentFile=-@prefix@/share/fty/etc/default/fty__%n.conf
-EnvironmentFile=-@sysconfdir@/default/bios
-EnvironmentFile=-@sysconfdir@/default/bios__%n.conf
-EnvironmentFile=-@sysconfdir@/default/fty
-EnvironmentFile=-@sysconfdir@/default/fty__%n.conf
-Environment="prefix=@prefix@"
-ExecStart=@prefix@/bin/fty-alert-list
+Environment='SYSTEMD_UNIT_FULLNAME=%n'
+Environment="prefix=/usr"
+EnvironmentFile=-/usr/share/bios/etc/default/bios
+EnvironmentFile=-/usr/share/bios/etc/default/bios__%n.conf
+EnvironmentFile=-/usr/share/fty/etc/default/fty
+EnvironmentFile=-/usr/share/fty/etc/default/fty__%n.conf
+EnvironmentFile=-/etc/default/bios
+EnvironmentFile=-/etc/default/bios__%n.conf
+EnvironmentFile=-/etc/default/fty
+EnvironmentFile=-/etc/default/fty__%n.conf
+# var/lib/fty ('write 'state_file' file)
+ExecStartPre=+/bin/chown -R @AGENT_USER@ @AGENT_VAR_DIR@
+ExecStartPre=+/bin/chmod 771 @AGENT_VAR_DIR@
+# exec (no argument)
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/@PROJECT_NAME@
 
 [Install]
 WantedBy=bios.target
