@@ -1020,13 +1020,6 @@ fty_alert_list_server_test (bool verb) {
     rv = mlm_client_set_consumer (consumer, "ALERTS", ".*");
     assert (rv == 0);
 
-    // *before* initAlerts()
-    // we must cleanup persisted alerts /var/lib/fty/fty-alert-list/state_file
-    {
-        std::string persistedAlerts{std::string(STATE_PATH) + "/" + std::string(STATE_FILE)};
-        unlink(persistedAlerts.c_str());
-    }
-
     // Alert Lists (assume empty)
     init_alert_private (SELFTEST_RO, "_faked_empty_alerts_", verb);
     zactor_t *fty_al_server_stream = zactor_new (fty_alert_list_server_stream, (void *) endpoint);

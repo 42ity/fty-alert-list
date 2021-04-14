@@ -61,7 +61,6 @@
 
 //  Internal API
 #include "alerts_utils.h"
-//#include "bios_proto.h"
 #include "fty_alert_list_server.h"
 
 #endif
