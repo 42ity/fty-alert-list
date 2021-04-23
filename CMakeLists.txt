@@ -21,7 +21,11 @@ set(AGENT_USER "bios")
 set(AGENT_VAR_DIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/fty/${PROJECT_NAME}")
 
 # var/lib/fty runtime directory
-install(DIRECTORY DESTINATION ${AGENT_VAR_DIR})
+#done by .conf#install(DIRECTORY DESTINATION ${AGENT_VAR_DIR})
+
+## .conf file -> lib/tmpfiles.d/
+configure_file("${PROJECT_SOURCE_DIR}/resources/${PROJECT_NAME}.conf" "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.conf" @ONLY)
+install(FILES "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/tmpfiles.d/")
 
 # service -> lib/systemd/system
 configure_file("${PROJECT_SOURCE_DIR}/resources/fty-alert-list.service.in" "${PROJECT_BINARY_DIR}/resources/fty-alert-list.service" @ONLY)
