@@ -18,15 +18,13 @@ add_subdirectory(agent)
 ## https://cmake.org/cmake/help/v3.0/module/GNUInstallDirs.html
 
 set(AGENT_USER "bios")
+# var/lib/fty/
 set(AGENT_VAR_DIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/fty/${PROJECT_NAME}")
 
-# var/lib/fty runtime directory
-#done by .conf#install(DIRECTORY DESTINATION ${AGENT_VAR_DIR})
-
 ## .conf file -> lib/tmpfiles.d/
-configure_file("${PROJECT_SOURCE_DIR}/resources/${PROJECT_NAME}.conf" "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.conf" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/resources/${PROJECT_NAME}.conf.in" "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.conf" @ONLY)
 install(FILES "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/tmpfiles.d/")
 
 # service -> lib/systemd/system
-configure_file("${PROJECT_SOURCE_DIR}/resources/fty-alert-list.service.in" "${PROJECT_BINARY_DIR}/resources/fty-alert-list.service" @ONLY)
-install(FILES "${PROJECT_BINARY_DIR}/resources/fty-alert-list.service" DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
+configure_file("${PROJECT_SOURCE_DIR}/resources/${PROJECT_NAME}.service.in" "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.service" @ONLY)
+install(FILES "${PROJECT_BINARY_DIR}/resources/${PROJECT_NAME}.service" DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
