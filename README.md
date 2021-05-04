@@ -4,13 +4,13 @@ Agent fty-alert-list serves as a broker between UI and fty-alert-engine. It also
 
 ## How to build
 
-To build fty-alert-list project run:
+To build, run:
 
 ```bash
-./autogen.sh
-./configure
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=usr -DBUILD_TESTING=On ..
 make
-make check # to run self-test
+sudo make install
 ```
 
 ## How to run
@@ -20,7 +20,7 @@ To run fty-alert-list project:
 * from within the source tree, run:
 
 ```bash
-./src/fty-alert-list
+./build/agent/fty-alert-list
 ```
 
 For the other options available, refer to the manual page of fty-alert-list
