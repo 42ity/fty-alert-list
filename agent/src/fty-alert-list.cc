@@ -19,76 +19,68 @@
     =========================================================================
  */
 
-/*
-@header
-    fty_alert_list -
-@discuss
-@end
- */
-
+#include "alerts_utils.h"
+#include "fty_alert_list_server.h"
 #include <czmq.h>
 #include <fty_log.h>
 
-#include "fty_alert_list_library.h"
-
-static int
-s_ttl_cleanup_timer(zloop_t *loop, int timer_id, void *output) {
+static int s_ttl_cleanup_timer(zloop_t* /*loop*/, int /*timer_id*/, void* output)
+{
     zstr_send(output, "TTLCLEANUP");
     return 0;
 }
 
-int main(int argc, char *argv []) {
+int main(int argc, char* argv[])
+{
 
-    ManageFtyLog::setInstanceFtylog ("fty-alert-list", FTY_COMMON_LOGGING_DEFAULT_CFG);
+    ManageFtyLog::setInstanceFtylog("fty-alert-list", FTY_COMMON_LOGGING_DEFAULT_CFG);
 
     bool verbose = false;
 
     int argn;
     for (argn = 1; argn < argc; argn++) {
-        if (streq(argv [argn], "--help") ||
-                streq(argv [argn], "-h")) {
+        if (streq(argv[argn], "--help") || streq(argv[argn], "-h")) {
             puts("fty-alert-list [options] ...");
             puts("  --verbose / -v         verbose test output");
             puts("  --help / -h            this information");
             return EXIT_SUCCESS;
-        }
-        else if (streq(argv [argn], "--verbose") ||
-                streq(argv [argn], "-v")) {
+        } else if (streq(argv[argn], "--verbose") || streq(argv[argn], "-v")) {
             verbose = true;
-        }
-        else {
-            printf("Unknown option: %s\n", argv [argn]);
+        } else {
+            printf("Unknown option: %s\n", argv[argn]);
             return EXIT_FAILURE;
         }
     }
 
-    if (verbose) ManageFtyLog::getInstanceFtylog()->setVerboseMode();
+    if (verbose)
+        ManageFtyLog::getInstanceFtylog()->setVerboseMode();
 
     log_info("fty-alert-list starting...");
 
     //  Insert main code here
-    log_debug("fty-alert-list - Agent providing information about active alerts"); // TODO: rewrite alerts_list_server to accept VERBOSE
+    log_debug("fty-alert-list - Agent providing information about active alerts"); // TODO: rewrite alerts_list_server
+                                                                                   // to accept VERBOSE
 
-    //init the alert list (common with stream and mailbox treatment)
+    // init the alert list (common with stream and mailbox treatment)
     init_alert(verbose); // read alerts state_file
 
-    //initialize actors and timer for stream
+    // initialize actors and timer for stream
 
-    const char *endpoint = "ipc://@/malamute";
-    zactor_t *alert_list_server_mailbox = zactor_new(fty_alert_list_server_mailbox, (void *) endpoint);
+    const char* endpoint                  = "ipc://@/malamute";
+    zactor_t*   alert_list_server_mailbox = zactor_new(fty_alert_list_server_mailbox, const_cast<char*>(endpoint));
     if (!alert_list_server_mailbox) {
         log_fatal("alert_list_server_mailbox creation failed");
         return EXIT_FAILURE;
     }
 
-    zactor_t *alert_list_server_stream = zactor_new(fty_alert_list_server_stream, (void *) endpoint);
+    zactor_t* alert_list_server_stream = zactor_new(fty_alert_list_server_stream, const_cast<char*>(endpoint));
     if (!alert_list_server_stream) {
         log_fatal("alert_list_server_stream creation failed");
         zactor_destroy(&alert_list_server_mailbox);
         return EXIT_FAILURE;
     }
 
-    zloop_t *ttlcleanup_stream = zloop_new();
+    zloop_t* ttlcleanup_stream = zloop_new();
     if (!ttlcleanup_stream) {
         log_fatal("ttlcleanup_stream creation failed");
         zactor_destroy(&alert_list_server_stream);
