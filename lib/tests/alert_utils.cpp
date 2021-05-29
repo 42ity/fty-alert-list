@@ -4,8 +4,8 @@
 
 TEST_CASE("alerts utils test")
 {
-#define SELFTEST_RO "selftest-ro"
-#define SELFTEST_RW "selftest-rw"
+#define SELFTEST_RO "tests/selftest-ro"
+#define SELFTEST_RW "."
 
     //  **************************************
     //  *****   s_string_encode/decode   *****

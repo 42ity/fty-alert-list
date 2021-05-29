@@ -134,7 +134,7 @@ struct _bios_proto_t
     {                                                                                                                  \
         if (self->needle + 2 > self->ceiling)                                                                          \
             goto malformed;                                                                                            \
-        (host) = uint16_t((uint16_t(self->needle[0]) << 8)) + uint16_t(self->needle[1]);                               \
+        (host) = uint16_t(uint16_t((uint16_t(self->needle[0]) << 8)) + uint16_t(self->needle[1]));                     \
         self->needle += 2;                                                                                             \
     }
 

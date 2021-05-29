@@ -99,7 +99,7 @@ static int convert_file(const char* file_name, const char* old_path, const char*
         zmessage = zmsg_decode(data, size_t(*prefix));
 #else
         {
-            zframe_t* fr = zframe_new(data, (size_t)*prefix);
+            zframe_t* fr = zframe_new(data, size_t(*prefix));
             zmessage     = zmsg_decode(fr);
             zframe_destroy(&fr);
         }
@@ -217,7 +217,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    int rv = convert_file(argv[1], argv[2], argv[3]);
+    [[maybe_unused]] int rv = convert_file(argv[1], argv[2], argv[3]);
     assert(rv == 0);
 
     return EXIT_SUCCESS;

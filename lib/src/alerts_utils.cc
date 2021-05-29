@@ -308,7 +308,7 @@ static int s_alert_load_state_legacy(zlistx_t* alerts, const char* path, const c
         zmessage = zmsg_decode(data, size_t(*prefix));
 #else
         {
-            zframe_t* fr = zframe_new(data, (size_t)*prefix);
+            zframe_t* fr = zframe_new(data, size_t(*prefix));
             zmessage     = zmsg_decode(fr);
             zframe_destroy(&fr);
         }
