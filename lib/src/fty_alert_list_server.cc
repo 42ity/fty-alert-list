@@ -127,7 +127,7 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
     assert(client);
     assert(msg_p);
 
-    if (!is_fty_proto(*msg_p)) {
+    if (!fty_proto_is(*msg_p)) {
         log_error("s_handle_stream_deliver (): Message not fty_proto");
         return;
     }
