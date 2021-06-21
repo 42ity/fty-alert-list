@@ -20,95 +20,97 @@
 */
 
 #include <czmq.h>
-#include <malamute.h>
 #include <fty_log.h>
 #include <fty_proto.h>
+#include <malamute.h>
 
-int main (int argc, char **argv) {
-    char *endpoint = NULL;
+int main(int argc, char** argv)
+{
+    char* endpoint = nullptr;
 
     if (argc < 8) {
-        fprintf (stderr, "USAGE:\n\tgenerate_alert <rule_name> <element_name> <state> <severity> <description> <unixtime> <action[|action2[|...]]> <ttl> [endpoint]\n");
-        fprintf (stderr, "\nOPTIONAL ARGUMENTS:\n\tendpoint\tMalamute endpoint. Default: ipc://@/malamute.\n");
+        fprintf(stderr,
+            "USAGE:\n\tgenerate_alert <rule_name> <element_name> <state> <severity> <description> <unixtime> "
+            "<action[|action2[|...]]> <ttl> [endpoint]\n");
+        fprintf(stderr, "\nOPTIONAL ARGUMENTS:\n\tendpoint\tMalamute endpoint. Default: ipc://@/malamute.\n");
         return EXIT_FAILURE;
     }
 
     // check unixtime
-    char **endptr = NULL;
-    errno = 0;
-    unsigned long int unixtime = strtoul (argv[6], endptr, 10);
-    if (endptr != NULL || errno != 0) {
-        log_error ("<unixtime> parameter = '%s' is not a valid unix time", argv[6]);
+    char** endptr              = nullptr;
+    errno                      = 0;
+    unsigned long int unixtime = strtoul(argv[6], endptr, 10);
+    if (endptr != nullptr || errno != 0) {
+        log_error("<unixtime> parameter = '%s' is not a valid unix time", argv[6]);
         return EXIT_FAILURE;
     }
 
-    unsigned long int ttl = strtoul (argv[8], endptr, 10);
-    if (endptr != NULL || errno != 0) {
-        log_error ("<ttl> parameter = '%s' is not a valid ttl", argv[8]);
+    unsigned long int ttl = strtoul(argv[8], endptr, 10);
+    if (endptr != nullptr || errno != 0) {
+        log_error("<ttl> parameter = '%s' is not a valid ttl", argv[8]);
         return EXIT_FAILURE;
     }
 
 
     if (argc > 9)
-        endpoint = strdup (argv[9]);
+        endpoint = strdup(argv[9]);
     else
-        endpoint = strdup ("ipc://@/malamute");
+        endpoint = strdup("ipc://@/malamute");
 
-    mlm_client_t *client = mlm_client_new ();
-    srand ((unsigned) time (NULL));
-    char *strtemp = NULL;
-    int rv = asprintf (&strtemp, "generate_alert.%d%d", rand () % 10, rand () % 10);
+    mlm_client_t* client = mlm_client_new();
+    srand(uint32_t(time(nullptr)));
+    char* strtemp = nullptr;
+    int   rv      = asprintf(&strtemp, "generate_alert.%d%d", rand() % 10, rand() % 10);
     if (rv == -1) {
-        log_error ("asprintf() failed");
-        free (endpoint); endpoint = NULL;
-        mlm_client_destroy (&client);
+        log_error("asprintf() failed");
+        free(endpoint);
+        endpoint = nullptr;
+        mlm_client_destroy(&client);
         return EXIT_FAILURE;
     }
-    mlm_client_connect (client, endpoint, 1000, strtemp);
-    free (strtemp); strtemp = NULL;
-    mlm_client_set_producer (client, "ALERTS");
+    mlm_client_connect(client, endpoint, 1000, strtemp);
+    free(strtemp);
+    strtemp = nullptr;
+    mlm_client_set_producer(client, "ALERTS");
 
-    zlist_t *actions = zlist_new ();
-    zlist_autofree (actions);
-    zlist_append (actions, argv[7]);
-    zmsg_t *alert_message = fty_proto_encode_alert (
-            NULL,
-            unixtime,
-            ttl,
-            argv[1],
-            argv[2],
-            argv[3],
-            argv[4],
-            argv[5],
-            actions);
+    zlist_t* actions = zlist_new();
+    zlist_autofree(actions);
+    zlist_append(actions, argv[7]);
+    zmsg_t* alert_message =
+        fty_proto_encode_alert(nullptr, unixtime, uint32_t(ttl), argv[1], argv[2], argv[3], argv[4], argv[5], actions);
     if (!alert_message) {
-        log_error ("fty_proto_encode_alert() failed");
-        free (endpoint); endpoint = NULL;
-        mlm_client_destroy (&client);
-        zlist_destroy (&actions);
+        log_error("fty_proto_encode_alert() failed");
+        free(endpoint);
+        endpoint = nullptr;
+        mlm_client_destroy(&client);
+        zlist_destroy(&actions);
         return EXIT_FAILURE;
     }
 
     // rule_name/severity@element_name
-    rv = asprintf (&strtemp, "%s/%s@%s", argv[1], argv[4], argv[2]);
+    rv = asprintf(&strtemp, "%s/%s@%s", argv[1], argv[4], argv[2]);
     if (rv == -1) {
-        log_error ("asprintf() failed");
-        free (endpoint); endpoint = NULL;
-        mlm_client_destroy (&client);
-        zlist_destroy (&actions);
+        log_error("asprintf() failed");
+        free(endpoint);
+        endpoint = nullptr;
+        mlm_client_destroy(&client);
+        zlist_destroy(&actions);
         return EXIT_FAILURE;
     }
-    rv = mlm_client_send (client, strtemp, &alert_message);
-    free (strtemp); strtemp = NULL;
+    rv = mlm_client_send(client, strtemp, &alert_message);
+    free(strtemp);
+    strtemp = nullptr;
     if (rv != 0) {
-        log_error ("mlm_client_send () failed");
-        free (endpoint); endpoint = NULL;
-        mlm_client_destroy (&client);
-        zlist_destroy (&actions);
+        log_error("mlm_client_send () failed");
+        free(endpoint);
+        endpoint = nullptr;
+        mlm_client_destroy(&client);
+        zlist_destroy(&actions);
         return EXIT_FAILURE;
     }
-    free (endpoint); endpoint = NULL;
-    mlm_client_destroy (&client);
-    zlist_destroy (&actions);
+    free(endpoint);
+    endpoint = nullptr;
+    mlm_client_destroy(&client);
+    zlist_destroy(&actions);
     return EXIT_SUCCESS;
 }

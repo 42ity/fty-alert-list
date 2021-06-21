@@ -19,37 +19,13 @@
     =========================================================================
  */
 
-#ifndef FTY_ALERT_LIST_SERVER_H_INCLUDED
-#define FTY_ALERT_LIST_SERVER_H_INCLUDED
+#pragma once
+#include <czmq.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-    //  @interface
-
-    //  zactor ready fnction
-    FTY_ALERT_LIST_EXPORT void
-    fty_alert_list_server_stream(zsock_t *pipe, void *args);
-
-    FTY_ALERT_LIST_EXPORT void
-    init_alert(bool verb);
-
-    FTY_ALERT_LIST_EXPORT void
-    destroy_alert();
-
-    FTY_ALERT_LIST_EXPORT void
-    save_alerts();
-
-    FTY_ALERT_LIST_EXPORT void
-    fty_alert_list_server_mailbox(zsock_t *pipe, void *args);
-
-    FTY_ALERT_LIST_EXPORT void
-    fty_alert_list_server_test(bool verbose);
-    //  @end
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+///  zactor ready fnction
+void fty_alert_list_server_stream(zsock_t* pipe, void* args);
+void init_alert(bool verb);
+void destroy_alert();
+void save_alerts();
+void fty_alert_list_server_mailbox(zsock_t* pipe, void* args);
+void init_alert_private(const char* path, const char* filename, bool verb);

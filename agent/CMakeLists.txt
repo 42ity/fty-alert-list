@@ -3,18 +3,18 @@ cmake_policy(VERSION 3.13)
 
 ########################################################################################################################
 
-#Create the main target (service)
 etn_target(exe ${PROJECT_NAME}
     SOURCES
         src/fty-alert-list.cc
-    USES
-        czmq
-        fty_common_logging
+    INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib/src
     USES_PRIVATE
         ${PROJECT_NAME}-lib
+        libzmq
 )
 
-#Create auxiliary target: generate_alert
+########################################################################################################################
+
 etn_target(exe generate_alert
     SOURCES
         src/generate_alert.cc
@@ -25,7 +25,8 @@ etn_target(exe generate_alert
         fty_common_logging
 )
 
-#Create auxiliary target: fty-alert-list-convert
+########################################################################################################################
+
 etn_target(exe fty-alert-list-convert
     SOURCES
         src/fty-alert-list-convert.cc
@@ -36,3 +37,5 @@ etn_target(exe fty-alert-list-convert
         fty_proto
         fty_common_logging
 )
+
+########################################################################################################################
