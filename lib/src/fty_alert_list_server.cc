@@ -90,7 +90,8 @@ static void s_clear_long_time_expired(zhash_t* exp)
     const char* rule = reinterpret_cast<char*>(zlist_first(keys));
     while (rule) {
         int64_t* time = reinterpret_cast<int64_t*>(zhash_lookup(exp, rule));
-        if (*time < now - 3600)
+        int64_t t = time ? (*time) : 0;
+        if (t < (now - 3600))
             zhash_delete(exp, rule);
         rule = reinterpret_cast<char*>(zlist_next(keys));
     }
@@ -578,15 +579,15 @@ void fty_alert_list_server_stream(zsock_t* pipe, void* args)
         if (which == pipe) {
             zmsg_t* msg = zmsg_recv(pipe);
             char*   cmd = zmsg_popstr(msg);
-            if (streq(cmd, "$TERM")) {
-                zstr_free(&cmd);
-                zmsg_destroy(&msg);
-                break;
-            } else if (streq(cmd, "TTLCLEANUP")) {
+            bool term{cmd && streq(cmd, "$TERM")};
+            if (cmd && streq(cmd, "TTLCLEANUP")) {
                 s_resolve_expired_alerts(expirations);
             }
             zstr_free(&cmd);
             zmsg_destroy(&msg);
+            if (term) {
+                break;
+            }
         } else if (which == mlm_client_msgpipe(client)) {
             zmsg_t* msg = mlm_client_recv(client);
             if (!msg) {
@@ -627,13 +628,12 @@ void fty_alert_list_server_mailbox(zsock_t* pipe, void* args)
         if (which == pipe) {
             zmsg_t* msg = zmsg_recv(pipe);
             char*   cmd = zmsg_popstr(msg);
-            if (streq(cmd, "$TERM")) {
-                zstr_free(&cmd);
-                zmsg_destroy(&msg);
-                break;
-            }
+            bool term{cmd && streq(cmd, "$TERM")};
             zstr_free(&cmd);
             zmsg_destroy(&msg);
+            if (term) {
+                break;
+            }
         } else if (which == mlm_client_msgpipe(client)) {
             zmsg_t* msg = mlm_client_recv(client);
             if (!msg) {

@@ -33,6 +33,7 @@
 /// bios_proto - Core BIOS protocols
 
 #include "bios_proto.h"
+#include <fty_log.h>
 
 //  Structure of our class
 
@@ -177,6 +178,7 @@ struct _bios_proto_t
         if (self->needle + string_size > (self->ceiling))                                                              \
             goto malformed;                                                                                            \
         (host) = reinterpret_cast<char*>(malloc(string_size + 1));                                                     \
+        if (!(host)) goto malformed;                                                                                   \
         memcpy((host), self->needle, string_size);                                                                     \
         (host)[string_size] = 0;                                                                                       \
         self->needle += string_size;                                                                                   \
@@ -199,6 +201,7 @@ struct _bios_proto_t
         if (self->needle + string_size > (self->ceiling))                                                              \
             goto malformed;                                                                                            \
         (host) = reinterpret_cast<char*>(malloc(string_size + 1));                                                     \
+        if (!(host)) goto malformed;                                                                                   \
         memcpy((host), self->needle, string_size);                                                                     \
         (host)[string_size] = 0;                                                                                       \
         self->needle += string_size;                                                                                   \
@@ -211,34 +214,37 @@ struct _bios_proto_t
 bios_proto_t* bios_proto_new(int id)
 {
     bios_proto_t* self = reinterpret_cast<bios_proto_t*>(zmalloc(sizeof(bios_proto_t)));
-    self->id           = id;
+    if (!self) {
+        log_error("bios_proto_new failed");
+        return NULL;
+    }
+
+    self->id = id;
     return self;
 }
-
 
 //  --------------------------------------------------------------------------
 //  Destroy the bios_proto
 
 void bios_proto_destroy(bios_proto_t** self_p)
 {
-    assert(self_p);
-    if (*self_p) {
+    if (self_p && (*self_p)) {
         bios_proto_t* self = *self_p;
 
         //  Free class properties
         zframe_destroy(&self->routing_id);
         zhash_destroy(&self->aux);
-        free(self->type);
-        free(self->element_src);
-        free(self->value);
-        free(self->unit);
-        free(self->rule);
-        free(self->state);
-        free(self->severity);
-        free(self->description);
-        free(self->action);
-        free(self->name);
-        free(self->operation);
+        zstr_free(&self->type);
+        zstr_free(&self->element_src);
+        zstr_free(&self->value);
+        zstr_free(&self->unit);
+        zstr_free(&self->rule);
+        zstr_free(&self->state);
+        zstr_free(&self->severity);
+        zstr_free(&self->description);
+        zstr_free(&self->action);
+        zstr_free(&self->name);
+        zstr_free(&self->operation);
         zhash_destroy(&self->ext);
 
         //  Free object itself
@@ -263,7 +269,7 @@ bool is_bios_proto(zmsg_t* msg)
     bios_proto_t* self = bios_proto_new(0);
     self->needle       = zframe_data(frame);
     self->ceiling      = self->needle + zframe_size(frame);
-    uint16_t signature;
+    uint16_t signature = 0;
     GET_NUMBER2(signature);
     if (signature != (0xAAA0 | 1))
         goto fail; //  Invalid signature
@@ -293,10 +299,11 @@ malformed:
 
 bios_proto_t* bios_proto_decode(zmsg_t** msg_p)
 {
-    assert(msg_p);
-    zmsg_t* msg = *msg_p;
+    zmsg_t* msg = msg_p ? *msg_p : NULL;
     if (msg == NULL)
         return NULL;
+
+    char *key = NULL, *value = NULL;
 
     bios_proto_t* self = bios_proto_new(0);
     //  Read and parse command in frame
@@ -317,17 +324,17 @@ bios_proto_t* bios_proto_decode(zmsg_t** msg_p)
 
     switch (self->id) {
         case BIOS_PROTO_METRIC: {
-            size_t hash_size;
+            size_t hash_size = 0;
             GET_NUMBER4(hash_size);
             self->aux = zhash_new();
             zhash_autofree(self->aux);
             while (hash_size--) {
-                char *key, *value;
+                key = value = NULL;
                 GET_STRING(key);
                 GET_LONGSTR(value);
                 zhash_insert(self->aux, key, value);
-                free(key);
-                free(value);
+                zstr_free(&key);
+                zstr_free(&value);
             }
         }
             GET_STRING(self->type);
@@ -338,17 +345,17 @@ bios_proto_t* bios_proto_decode(zmsg_t** msg_p)
             break;
 
         case BIOS_PROTO_ALERT: {
-            size_t hash_size;
+            size_t hash_size = 0;
             GET_NUMBER4(hash_size);
             self->aux = zhash_new();
             zhash_autofree(self->aux);
             while (hash_size--) {
-                char *key, *value;
+                key = value = NULL;
                 GET_STRING(key);
                 GET_LONGSTR(value);
                 zhash_insert(self->aux, key, value);
-                free(key);
-                free(value);
+                zstr_free(&key);
+                zstr_free(&value);
             }
         }
             GET_STRING(self->rule);
@@ -361,33 +368,33 @@ bios_proto_t* bios_proto_decode(zmsg_t** msg_p)
             break;
 
         case BIOS_PROTO_ASSET: {
-            size_t hash_size;
+            size_t hash_size = 0;
             GET_NUMBER4(hash_size);
             self->aux = zhash_new();
             zhash_autofree(self->aux);
             while (hash_size--) {
-                char *key, *value;
+                key = value = NULL;
                 GET_STRING(key);
                 GET_LONGSTR(value);
                 zhash_insert(self->aux, key, value);
-                free(key);
-                free(value);
+                zstr_free(&key);
+                zstr_free(&value);
             }
         }
             GET_STRING(self->name);
             GET_STRING(self->operation);
             {
-                size_t hash_size;
+                size_t hash_size = 0;
                 GET_NUMBER4(hash_size);
                 self->ext = zhash_new();
                 zhash_autofree(self->ext);
                 while (hash_size--) {
-                    char *key, *value;
+                    key = value = NULL;
                     GET_STRING(key);
                     GET_LONGSTR(value);
                     zhash_insert(self->ext, key, value);
-                    free(key);
-                    free(value);
+                    zstr_free(&key);
+                    zstr_free(&value);
                 }
             }
             break;
@@ -404,6 +411,8 @@ bios_proto_t* bios_proto_decode(zmsg_t** msg_p)
 malformed:
     zsys_error("malformed message '%d'\n", self->id);
 empty:
+    zstr_free(&key);
+    zstr_free(&value);
     zframe_destroy(&frame);
     zmsg_destroy(msg_p);
     bios_proto_destroy(&self);
@@ -417,8 +426,8 @@ empty:
 
 zmsg_t* bios_proto_encode(bios_proto_t** self_p)
 {
-    assert(self_p);
-    assert(*self_p);
+    if (!(self_p && (*self_p)))
+        return NULL;
 
     bios_proto_t* self = *self_p;
     zmsg_t*       msg  = zmsg_new();
@@ -541,7 +550,7 @@ zmsg_t* bios_proto_encode(bios_proto_t** self_p)
         default:
             zsys_error("bad message type '%d', not sent\n", self->id);
             //  No recovery, this is a fatal application error
-            assert(false);
+            exit(EXIT_FAILURE);
     }
     //  Now serialize message into the frame
     zframe_t* frame = zframe_new(NULL, frame_size);
@@ -667,8 +676,7 @@ zmsg_t* bios_proto_encode(bios_proto_t** self_p)
 
 bios_proto_t* bios_proto_recv(void* input)
 {
-    assert(input);
-    zmsg_t* msg = zmsg_recv(input);
+    zmsg_t* msg = input ? zmsg_recv(input) : NULL;
     if (!msg)
         return NULL; //  Interrupted
 
@@ -694,10 +702,10 @@ bios_proto_t* bios_proto_recv(void* input)
 
 bios_proto_t* bios_proto_recv_nowait(void* input)
 {
-    assert(input);
-    zmsg_t* msg = zmsg_recv_nowait(input);
+    zmsg_t* msg = input ? zmsg_recv_nowait(input) : NULL;
     if (!msg)
         return NULL; //  Interrupted
+
     //  If message came from a router socket, first frame is routing_id
     zframe_t* routing_id = NULL;
     if (zsock_type(zsock_resolve(input)) == ZMQ_ROUTER) {
@@ -720,9 +728,8 @@ bios_proto_t* bios_proto_recv_nowait(void* input)
 
 int bios_proto_send(bios_proto_t** self_p, void* output)
 {
-    assert(self_p);
-    assert(*self_p);
-    assert(output);
+    if (!(self_p && (*self_p) && output))
+        return -1;
 
     //  Save routing_id if any, as encode will destroy it
     bios_proto_t* self       = *self_p;
@@ -736,8 +743,9 @@ int bios_proto_send(bios_proto_t** self_p, void* output)
     if (zsock_type(zsock_resolve(output)) == ZMQ_ROUTER) {
         assert(routing_id);
         zmsg_prepend(msg, &routing_id);
-    } else
+    } else {
         zframe_destroy(&routing_id);
+    }
 
     if (msg && zmsg_send(&msg, output) == 0)
         return 0;
@@ -751,8 +759,6 @@ int bios_proto_send(bios_proto_t** self_p, void* output)
 
 int bios_proto_send_again(bios_proto_t* self, void* output)
 {
-    assert(self);
-    assert(output);
     self = bios_proto_dup(self);
     return bios_proto_send(&self, output);
 }
@@ -764,8 +770,11 @@ int bios_proto_send_again(bios_proto_t* self, void* output)
 zmsg_t* bios_proto_encode_metric(
     zhash_t* aux, const char* type, const char* element_src, const char* value, const char* unit, uint32_t ttl)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_METRIC);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_METRIC);
+    if (!self)
+        return NULL;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_type(self, "%s", type);
     bios_proto_set_element_src(self, "%s", element_src);
@@ -782,8 +791,11 @@ zmsg_t* bios_proto_encode_metric(
 zmsg_t* bios_proto_encode_alert(zhash_t* aux, const char* rule, const char* element_src, const char* state,
     const char* severity, const char* description, uint64_t time, const char* action)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_ALERT);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_ALERT);
+    if (!self)
+        return NULL;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_rule(self, "%s", rule);
     bios_proto_set_element_src(self, "%s", element_src);
@@ -801,8 +813,11 @@ zmsg_t* bios_proto_encode_alert(zhash_t* aux, const char* rule, const char* elem
 
 zmsg_t* bios_proto_encode_asset(zhash_t* aux, const char* name, const char* operation, zhash_t* ext)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_ASSET);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_ASSET);
+    if (!self)
+        return NULL;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_name(self, "%s", name);
     bios_proto_set_operation(self, "%s", operation);
@@ -818,8 +833,11 @@ zmsg_t* bios_proto_encode_asset(zhash_t* aux, const char* name, const char* oper
 int bios_proto_send_metric(void* output, zhash_t* aux, const char* type, const char* element_src, const char* value,
     const char* unit, uint32_t ttl)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_METRIC);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_METRIC);
+    if (!self)
+        return -1;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_type(self, type);
     bios_proto_set_element_src(self, element_src);
@@ -836,8 +854,11 @@ int bios_proto_send_metric(void* output, zhash_t* aux, const char* type, const c
 int bios_proto_send_alert(void* output, zhash_t* aux, const char* rule, const char* element_src, const char* state,
     const char* severity, const char* description, uint64_t time, const char* action)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_ALERT);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_ALERT);
+    if (!self)
+        return -1;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_rule(self, rule);
     bios_proto_set_element_src(self, element_src);
@@ -855,8 +876,11 @@ int bios_proto_send_alert(void* output, zhash_t* aux, const char* rule, const ch
 
 int bios_proto_send_asset(void* output, zhash_t* aux, const char* name, const char* operation, zhash_t* ext)
 {
-    bios_proto_t* self     = bios_proto_new(BIOS_PROTO_ASSET);
-    zhash_t*      aux_copy = zhash_dup(aux);
+    bios_proto_t* self = bios_proto_new(BIOS_PROTO_ASSET);
+    if (!self)
+        return -1;
+
+    zhash_t* aux_copy = zhash_dup(aux);
     bios_proto_set_aux(self, &aux_copy);
     bios_proto_set_name(self, name);
     bios_proto_set_operation(self, operation);
@@ -875,8 +899,13 @@ bios_proto_t* bios_proto_dup(bios_proto_t* self)
         return NULL;
 
     bios_proto_t* copy = bios_proto_new(self->id);
-    if (self->routing_id)
+    if (!copy)
+        return NULL;
+
+    if (self->routing_id) {
         copy->routing_id = zframe_dup(self->routing_id);
+    }
+
     switch (self->id) {
         case BIOS_PROTO_METRIC:
             copy->aux         = self->aux ? zhash_dup(self->aux) : NULL;
@@ -914,7 +943,9 @@ bios_proto_t* bios_proto_dup(bios_proto_t* self)
 
 void bios_proto_print(bios_proto_t* self)
 {
-    assert(self);
+    if (!self)
+        return;
+
     switch (self->id) {
         case BIOS_PROTO_METRIC:
             zsys_debug("BIOS_PROTO_METRIC:");
@@ -1022,12 +1053,14 @@ void bios_proto_print(bios_proto_t* self)
 
 zframe_t* bios_proto_routing_id(bios_proto_t* self)
 {
-    assert(self);
-    return self->routing_id;
+    return self ? self->routing_id : NULL;
 }
 
 void bios_proto_set_routing_id(bios_proto_t* self, zframe_t* routing_id)
 {
+    if (!self)
+        return;
+
     if (self->routing_id)
         zframe_destroy(&self->routing_id);
     self->routing_id = zframe_dup(routing_id);
@@ -1039,12 +1072,13 @@ void bios_proto_set_routing_id(bios_proto_t* self, zframe_t* routing_id)
 
 int bios_proto_id(bios_proto_t* self)
 {
-    assert(self);
-    return self->id;
+    return self ? self->id : 0;
 }
 
 void bios_proto_set_id(bios_proto_t* self, int id)
 {
+    if (!self)
+        return;
     self->id = id;
 }
 
@@ -1053,8 +1087,7 @@ void bios_proto_set_id(bios_proto_t* self, int id)
 
 const char* bios_proto_command(bios_proto_t* self)
 {
-    assert(self);
-    switch (self->id) {
+    switch (self ? self->id : 0) {
         case BIOS_PROTO_METRIC:
             return ("METRIC");
             break;
@@ -1073,14 +1106,16 @@ const char* bios_proto_command(bios_proto_t* self)
 
 zhash_t* bios_proto_aux(bios_proto_t* self)
 {
-    assert(self);
-    return self->aux;
+    return self ? self->aux : NULL;
 }
 
 //  Get the aux field and transfer ownership to caller
 
 zhash_t* bios_proto_get_aux(bios_proto_t* self)
 {
+    if (!self)
+        return NULL;
+
     zhash_t* aux = self->aux;
     self->aux    = NULL;
     return aux;
@@ -1090,8 +1125,9 @@ zhash_t* bios_proto_get_aux(bios_proto_t* self)
 
 void bios_proto_set_aux(bios_proto_t* self, zhash_t** aux_p)
 {
-    assert(self);
-    assert(aux_p);
+    if (!(self && aux_p))
+        return;
+
     zhash_destroy(&self->aux);
     self->aux = *aux_p;
     *aux_p    = NULL;
@@ -1102,7 +1138,9 @@ void bios_proto_set_aux(bios_proto_t* self, zhash_t** aux_p)
 
 const char* bios_proto_aux_string(bios_proto_t* self, const char* key, const char* default_value)
 {
-    assert(self);
+    if (!self)
+        return NULL;
+
     const char* value = NULL;
     if (self->aux)
         value = reinterpret_cast<const char*>(zhash_lookup(self->aux, key));
@@ -1114,7 +1152,9 @@ const char* bios_proto_aux_string(bios_proto_t* self, const char* key, const cha
 
 uint64_t bios_proto_aux_number(bios_proto_t* self, const char* key, uint64_t default_value)
 {
-    assert(self);
+    if (!self)
+        return default_value;
+
     uint64_t value  = default_value;
     char*    string = NULL;
     if (self->aux)
@@ -1127,8 +1167,10 @@ uint64_t bios_proto_aux_number(bios_proto_t* self, const char* key, uint64_t def
 
 void bios_proto_aux_insert(bios_proto_t* self, const char* key, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format into newly allocated string
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     char* string = zsys_vprintf(format, argptr);
@@ -1145,23 +1187,23 @@ void bios_proto_aux_insert(bios_proto_t* self, const char* key, const char* form
 
 size_t bios_proto_aux_size(bios_proto_t* self)
 {
-    return zhash_size(self->aux);
+    return self ? zhash_size(self->aux) : 0;
 }
-
 
 //  --------------------------------------------------------------------------
 //  Get/set the type field
 
 const char* bios_proto_type(bios_proto_t* self)
 {
-    assert(self);
-    return self->type;
+    return self ? self->type : NULL;
 }
 
 void bios_proto_set_type(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format type from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->type);
@@ -1169,20 +1211,20 @@ void bios_proto_set_type(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get/set the element_src field
 
 const char* bios_proto_element_src(bios_proto_t* self)
 {
-    assert(self);
-    return self->element_src;
+    return self ? self->element_src : NULL;
 }
 
 void bios_proto_set_element_src(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format element_src from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->element_src);
@@ -1190,20 +1232,20 @@ void bios_proto_set_element_src(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get/set the value field
 
 const char* bios_proto_value(bios_proto_t* self)
 {
-    assert(self);
-    return self->value;
+    return self ? self->value : NULL;
 }
 
 void bios_proto_set_value(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format value from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->value);
@@ -1211,20 +1253,20 @@ void bios_proto_set_value(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get/set the unit field
 
 const char* bios_proto_unit(bios_proto_t* self)
 {
-    assert(self);
-    return self->unit;
+    return self ? self->unit : NULL;
 }
 
 void bios_proto_set_unit(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format unit from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->unit);
@@ -1238,13 +1280,14 @@ void bios_proto_set_unit(bios_proto_t* self, const char* format, ...)
 
 uint32_t bios_proto_ttl(bios_proto_t* self)
 {
-    assert(self);
-    return self->ttl;
+    return self ? self->ttl : 0;
 }
 
 void bios_proto_set_ttl(bios_proto_t* self, uint32_t ttl)
 {
-    assert(self);
+    if (!self)
+        return;
+
     self->ttl = ttl;
 }
 
@@ -1254,14 +1297,15 @@ void bios_proto_set_ttl(bios_proto_t* self, uint32_t ttl)
 
 const char* bios_proto_rule(bios_proto_t* self)
 {
-    assert(self);
-    return self->rule;
+    return self ? self->rule : NULL;
 }
 
 void bios_proto_set_rule(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format rule from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->rule);
@@ -1275,14 +1319,15 @@ void bios_proto_set_rule(bios_proto_t* self, const char* format, ...)
 
 const char* bios_proto_state(bios_proto_t* self)
 {
-    assert(self);
-    return self->state;
+    return self ? self->state : NULL;
 }
 
 void bios_proto_set_state(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format state from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->state);
@@ -1296,14 +1341,15 @@ void bios_proto_set_state(bios_proto_t* self, const char* format, ...)
 
 const char* bios_proto_severity(bios_proto_t* self)
 {
-    assert(self);
-    return self->severity;
+    return self ? self->severity : NULL;
 }
 
 void bios_proto_set_severity(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format severity from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->severity);
@@ -1317,14 +1363,15 @@ void bios_proto_set_severity(bios_proto_t* self, const char* format, ...)
 
 const char* bios_proto_description(bios_proto_t* self)
 {
-    assert(self);
-    return self->description;
+    return self ? self->description : NULL;
 }
 
 void bios_proto_set_description(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format description from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->description);
@@ -1338,30 +1385,31 @@ void bios_proto_set_description(bios_proto_t* self, const char* format, ...)
 
 uint64_t bios_proto_time(bios_proto_t* self)
 {
-    assert(self);
-    return self->time;
+    return self ? self->time : 0;
 }
 
 void bios_proto_set_time(bios_proto_t* self, uint64_t time)
 {
-    assert(self);
+    if (!self)
+        return;
+
     self->time = time;
 }
-
 
 //  --------------------------------------------------------------------------
 //  Get/set the action field
 
 const char* bios_proto_action(bios_proto_t* self)
 {
-    assert(self);
-    return self->action;
+    return self ? self->action : NULL;
 }
 
 void bios_proto_set_action(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format action from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->action);
@@ -1369,20 +1417,20 @@ void bios_proto_set_action(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get/set the name field
 
 const char* bios_proto_name(bios_proto_t* self)
 {
-    assert(self);
-    return self->name;
+    return self ? self->name : NULL;
 }
 
 void bios_proto_set_name(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format name from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->name);
@@ -1390,20 +1438,20 @@ void bios_proto_set_name(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get/set the operation field
 
 const char* bios_proto_operation(bios_proto_t* self)
 {
-    assert(self);
-    return self->operation;
+    return self ? self->operation : NULL;
 }
 
 void bios_proto_set_operation(bios_proto_t* self, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format operation from provided arguments
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     free(self->operation);
@@ -1411,20 +1459,21 @@ void bios_proto_set_operation(bios_proto_t* self, const char* format, ...)
     va_end(argptr);
 }
 
-
 //  --------------------------------------------------------------------------
 //  Get the ext field without transferring ownership
 
 zhash_t* bios_proto_ext(bios_proto_t* self)
 {
-    assert(self);
-    return self->ext;
+    return self ? self->ext : NULL;
 }
 
 //  Get the ext field and transfer ownership to caller
 
 zhash_t* bios_proto_get_ext(bios_proto_t* self)
 {
+    if (!self)
+        return NULL;
+
     zhash_t* ext = self->ext;
     self->ext    = NULL;
     return ext;
@@ -1434,8 +1483,9 @@ zhash_t* bios_proto_get_ext(bios_proto_t* self)
 
 void bios_proto_set_ext(bios_proto_t* self, zhash_t** ext_p)
 {
-    assert(self);
-    assert(ext_p);
+    if (!(self && ext_p))
+        return;
+
     zhash_destroy(&self->ext);
     self->ext = *ext_p;
     *ext_p    = NULL;
@@ -1446,7 +1496,9 @@ void bios_proto_set_ext(bios_proto_t* self, zhash_t** ext_p)
 
 const char* bios_proto_ext_string(bios_proto_t* self, const char* key, const char* default_value)
 {
-    assert(self);
+    if (!self)
+        return NULL;
+
     const char* value = NULL;
     if (self->ext)
         value = reinterpret_cast<const char*>(zhash_lookup(self->ext, key));
@@ -1458,7 +1510,9 @@ const char* bios_proto_ext_string(bios_proto_t* self, const char* key, const cha
 
 uint64_t bios_proto_ext_number(bios_proto_t* self, const char* key, uint64_t default_value)
 {
-    assert(self);
+    if (!self)
+        return 0;
+
     uint64_t value  = default_value;
     char*    string = NULL;
     if (self->ext)
@@ -1471,8 +1525,10 @@ uint64_t bios_proto_ext_number(bios_proto_t* self, const char* key, uint64_t def
 
 void bios_proto_ext_insert(bios_proto_t* self, const char* key, const char* format, ...)
 {
+    if (!self)
+        return;
+
     //  Format into newly allocated string
-    assert(self);
     va_list argptr;
     va_start(argptr, format);
     char* string = zsys_vprintf(format, argptr);
@@ -1489,9 +1545,8 @@ void bios_proto_ext_insert(bios_proto_t* self, const char* key, const char* form
 
 size_t bios_proto_ext_size(bios_proto_t* self)
 {
-    return zhash_size(self->ext);
+    return self ? zhash_size(self->ext) : 0;
 }
-
 
 //  --------------------------------------------------------------------------
 //  Selftest
