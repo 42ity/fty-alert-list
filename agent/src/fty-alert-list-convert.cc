@@ -127,6 +127,7 @@ static int convert_file(const char* file_name, const char* old_path, const char*
                 zlist_append(actions, single_action);
                 single_action = strtok(NULL, "/|\\");
             }
+            free(old_actions);
         }
         fty_proto_set_action(falert, &actions);
 
