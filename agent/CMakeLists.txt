@@ -14,28 +14,3 @@ etn_target(exe ${PROJECT_NAME}
 )
 
 ########################################################################################################################
-
-etn_target(exe generate_alert
-    SOURCES
-        src/generate_alert.cc
-    USES
-        czmq
-        mlm
-        fty_proto
-        fty_common_logging
-)
-
-########################################################################################################################
-
-etn_target(exe fty-alert-list-convert
-    SOURCES
-        src/fty-alert-list-convert.cc
-        src/bios_proto.cc
-        src/bios_proto.h
-    USES
-        czmq
-        fty_proto
-        fty_common_logging
-)
-
-########################################################################################################################
