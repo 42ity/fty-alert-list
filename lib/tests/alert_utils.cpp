@@ -1,3 +1,19 @@
+/*  ========================================================================
+    Copyright (C) 2020 Eaton
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    ========================================================================
+*/
+
 #include "src/alerts_utils.h"
 #include <catch2/catch.hpp>
 #include <fty_common_utf8.h>
@@ -13,7 +29,7 @@ TEST_CASE("alerts utils test")
 
     {
         // clang-format off
-        const char* test[] = {
+        const char* testVector[] = {
             "",
             "0",
             "01",
@@ -45,16 +61,13 @@ TEST_CASE("alerts utils test")
             "  ]"
             "}",
 
-            nullptr
         };
         // clang-format on
 
         CHECK(s_string_encode(nullptr) == nullptr);
         CHECK(s_string_decode(nullptr) == nullptr);
 
-        for (int i = 0; test[i]; i++) {
-            const char* message = test[i];
-
+        for (auto message : testVector) {
             char* encoded = s_string_encode(message);
             CHECK(encoded);
 
@@ -196,6 +209,8 @@ TEST_CASE("alerts utils test")
         zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
         zlist_append(actions, const_cast<char*>(ACTION_SMS));
         fty_proto_t* alert = alert_new("Threshold", "ups", "ACTIVE", "high", "description", 1, &actions, 0);
+        zlist_destroy(&actions);
+
         CHECK(streq(fty_proto_rule(alert), "Threshold"));
         CHECK(streq(fty_proto_name(alert), "ups"));
         CHECK(streq(fty_proto_state(alert), "ACTIVE"));
@@ -205,9 +220,8 @@ TEST_CASE("alerts utils test")
         CHECK(streq(fty_proto_action_next(alert), "SMS"));
         CHECK(nullptr == fty_proto_action_next(alert));
         CHECK(fty_proto_time(alert) == 1);
+
         fty_proto_destroy(&alert);
-        if (nullptr != actions)
-            zlist_destroy(&actions);
 
         actions = zlist_new();
         zlist_autofree(actions);
@@ -216,6 +230,8 @@ TEST_CASE("alerts utils test")
         zlist_append(actions, const_cast<char*>("Morse code"));
         alert = alert_new("Simple@Rule@Because", "karolkove zelezo", "ACTIVE", "high Severity",
             "Holiday \nInn hotel 243", 10101795, &actions, 0);
+        zlist_destroy(&actions);
+
         CHECK(streq(fty_proto_rule(alert), "Simple@Rule@Because"));
         CHECK(streq(fty_proto_name(alert), "karolkove zelezo"));
         CHECK(streq(fty_proto_state(alert), "ACTIVE"));
@@ -226,9 +242,8 @@ TEST_CASE("alerts utils test")
         CHECK(streq(fty_proto_action_next(alert), "Morse code"));
         CHECK(nullptr == fty_proto_action_next(alert));
         CHECK(fty_proto_time(alert) == 10101795);
+
         fty_proto_destroy(&alert);
-        if (nullptr != actions)
-            zlist_destroy(&actions);
     }
 
     //  ************************************
@@ -254,10 +269,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -282,10 +295,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -308,10 +319,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -334,10 +343,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -359,10 +366,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -384,10 +389,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -409,10 +412,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -434,10 +435,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -460,10 +459,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -485,10 +482,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -511,8 +506,7 @@ TEST_CASE("alerts utils test")
         CHECK(is_alert_identified(alert, "temperature.average@DC-Roztoky", "epDU") == 0);
         CHECK(is_alert_identified(alert, "Temperature.Average@dC-Roztoky", "epDU") == 0);
         fty_proto_destroy(&alert);
-        if (nullptr != actions)
-            zlist_destroy(&actions);
+        zlist_destroy(&actions);
     }
 
     {
@@ -526,8 +520,7 @@ TEST_CASE("alerts utils test")
         CHECK(is_alert_identified(
                   alert, "temperature.average@dc-roztoky", "ta2\u20ac\u0441\u0443\u043f\u0435\u044014159") == 1);
         fty_proto_destroy(&alert);
-        if (nullptr != actions)
-            zlist_destroy(&actions);
+        zlist_destroy(&actions);
     }
 
     {
@@ -540,8 +533,7 @@ TEST_CASE("alerts utils test")
         CHECK(is_alert_identified(alert, "temperature.average@dc-roztoky", "ŽlUťOUčKý kůň") == 1);
         CHECK(is_alert_identified(alert, "temperature.averageDC-Roztoky", "ŽlUťOUčKý kůň") == 0);
         fty_proto_destroy(&alert);
-        if (nullptr != actions)
-            zlist_destroy(&actions);
+        zlist_destroy(&actions);
     }
 
     //  *********************************
@@ -566,10 +558,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -592,10 +582,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -620,10 +608,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -645,10 +631,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -670,10 +654,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -695,10 +677,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -720,10 +700,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -746,10 +724,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -770,10 +746,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -796,10 +770,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -819,10 +791,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -843,10 +813,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -869,10 +837,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -893,10 +859,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -917,10 +881,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -941,10 +903,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -965,10 +925,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -989,10 +947,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -1013,10 +969,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -1038,10 +992,8 @@ TEST_CASE("alerts utils test")
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -1195,18 +1147,12 @@ TEST_CASE("alerts utils test")
 
         zlistx_destroy(&alerts2);
 
-        if (nullptr != actions1)
-            zlist_destroy(&actions1);
-        if (nullptr != actions2)
-            zlist_destroy(&actions2);
-        if (nullptr != actions3)
-            zlist_destroy(&actions3);
-        if (nullptr != actions4)
-            zlist_destroy(&actions4);
-        if (nullptr != actions5)
-            zlist_destroy(&actions5);
-        if (nullptr != actions6)
-            zlist_destroy(&actions6);
+        zlist_destroy(&actions1);
+        zlist_destroy(&actions2);
+        zlist_destroy(&actions3);
+        zlist_destroy(&actions4);
+        zlist_destroy(&actions5);
+        zlist_destroy(&actions6);
     }
 
     // Test case #2:

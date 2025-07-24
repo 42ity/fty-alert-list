@@ -1,6 +1,24 @@
+/*  ========================================================================
+    Copyright (C) 2020 Eaton
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    ========================================================================
+*/
+
 #include <catch2/catch.hpp>
+
 #include "src/fty_alert_list_server.h"
 #include "src/alerts_utils.h"
+
 #include <fty_proto.h>
 #include <malamute.h>
 #include <fty_common_utf8.h>
@@ -24,10 +42,14 @@ static zmsg_t* test_request_alerts_list(mlm_client_t* user_interface, const char
         zmsg_addstr(send, "LIST");
     }
     zmsg_addstr(send, state);
-    if (mlm_client_sendto(user_interface, "fty-alert-list", RFC_ALERTS_LIST_SUBJECT, nullptr, 5000, &send) != 0) {
-        zmsg_destroy(&send);
+
+    int r = mlm_client_sendto(user_interface, "fty-alert-list", RFC_ALERTS_LIST_SUBJECT, nullptr, 5000, &send);
+    zmsg_destroy(&send);
+    CHECK(r == 0);
+    if (r != 0) {
         return nullptr;
     }
+
     zmsg_t* reply = mlm_client_recv(user_interface);
     CHECK(streq(mlm_client_command(user_interface), "MAILBOX DELIVER"));
     CHECK(streq(mlm_client_sender(user_interface), "fty-alert-list"));
