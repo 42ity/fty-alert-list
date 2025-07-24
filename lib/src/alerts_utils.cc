@@ -44,7 +44,7 @@ char* s_string_encode(const char* s)
 
     // z85 padding, new size is the next bigger or equal multiple of 4
     size_t   padded_size = (s_size + 3) & 0xFFFFFFFC;
-    uint8_t* s_padded    = reinterpret_cast<uint8_t*>(zmalloc(padded_size));
+    uint8_t* s_padded = reinterpret_cast<uint8_t*>(zmalloc(padded_size));
     if (!s_padded) {
         log_error("allocation failed");
         return NULL;
@@ -54,7 +54,7 @@ char* s_string_encode(const char* s)
         memset(s_padded + s_size, 0, padded_size - s_size);
 
     size_t encoded_size = 1 + (5 * padded_size) / 4;
-    char*  s_encoded    = reinterpret_cast<char*>(zmalloc(encoded_size));
+    char* s_encoded = reinterpret_cast<char*>(zmalloc(encoded_size));
     if (!s_encoded) {
         free(s_padded);
         log_error("allocation failed");
@@ -171,12 +171,13 @@ int alert_comparator(fty_proto_t* alert1, fty_proto_t* alert2)
         action1 = fty_proto_action_next(alert1);
         action2 = fty_proto_action_next(alert2);
     }
-    return 0;
+
+    return 0; // equal
 }
 
 int is_acknowledge_state(const char* state)
 {
-    if (NULL != state && (streq(state, "ACK-WIP") || streq(state, "ACK-IGNORE") || streq(state, "ACK-PAUSE") ||
+    if (state && (streq(state, "ACK-WIP") || streq(state, "ACK-IGNORE") || streq(state, "ACK-PAUSE") ||
                              streq(state, "ACK-SILENCE"))) {
         return 1;
     }
@@ -185,7 +186,7 @@ int is_acknowledge_state(const char* state)
 
 int is_alert_state(const char* state)
 {
-    if (NULL != state && (streq(state, "ACTIVE") || streq(state, "RESOLVED") || is_acknowledge_state(state))) {
+    if (state && (streq(state, "ACTIVE") || streq(state, "RESOLVED") || is_acknowledge_state(state))) {
         return 1;
     }
     return 0;
@@ -193,7 +194,7 @@ int is_alert_state(const char* state)
 
 int is_list_request_state(const char* state)
 {
-    if (NULL != state && (streq(state, "ALL") || streq(state, "ALL-ACTIVE") || is_alert_state(state))) {
+    if (state && (streq(state, "ALL") || streq(state, "ALL-ACTIVE") || is_alert_state(state))) {
         return 1;
     }
     return 0;
@@ -215,7 +216,7 @@ int is_state_included(const char* list_request_state, const char* alert)
 
 int is_acknowledge_request_state(const char* state)
 {
-    if (NULL != state && (streq(state, "ACTIVE") || is_acknowledge_state(state))) {
+    if (state && (streq(state, "ACTIVE") || is_acknowledge_state(state))) {
         return 1;
     }
     return 0;
@@ -345,7 +346,7 @@ static int s_alert_load_state_new(zlistx_t* alerts, const char* path, const char
      * - that's the reason for unrolling.
      */
     zconfig_t* state = NULL;
-    zfile_t*   file  = zfile_new(path, filename);
+    zfile_t* file = zfile_new(path, filename);
 
     if (zfile_input(file) == 0) {
         zchunk_t* chunk = zfile_read(file, size_t(zfile_cursize(file)), 0);
@@ -398,7 +399,8 @@ static int s_alert_load_state_new(zlistx_t* alerts, const char* path, const char
 
         if (s_alerts_input_checks(alerts, alert)) {
             log_warning("Alert id (%s, %s) already read.", fty_proto_rule(alert), fty_proto_name(alert));
-        } else {
+        }
+        else {
             zlistx_add_end(alerts, alert);
         }
 
@@ -419,18 +421,18 @@ int alert_load_state(zlistx_t* alerts, const char* path, const char* filename)
         return -1;
     }
 
-    int rv = s_alert_load_state_new(alerts, path, filename);
-    if (rv != 0) {
-        log_warning("s_alert_load_state_new() failed (rv: %d)", rv);
+    int r = s_alert_load_state_new(alerts, path, filename);
+    if (r != 0) {
+        log_warning("s_alert_load_state_new() failed (rv: %d)", r);
         log_info("retry using s_alert_load_state_legacy()...");
 
-        rv = s_alert_load_state_legacy(alerts, path, filename);
-        if (rv != 0) {
-            log_error("s_alert_load_state_legacy() failed (rv: %d)", rv);
+        r = s_alert_load_state_legacy(alerts, path, filename);
+        if (r != 0) {
+            log_error("s_alert_load_state_legacy() failed (rv: %d)", r);
         }
     }
 
-    return rv;
+    return r;
 }
 
 // save alert state to disk
@@ -444,7 +446,7 @@ int alert_save_state(zlistx_t* alerts, const char* path, const char* filename, b
         return -1;
     }
 
-    zconfig_t*   state  = zconfig_new("root", NULL);
+    zconfig_t* state = zconfig_new("root", NULL);
     fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(zlistx_first(alerts));
 
     while (cursor) {
@@ -454,8 +456,7 @@ int alert_save_state(zlistx_t* alerts, const char* path, const char* filename, b
         // typically/mostly those who are json payloads or non ascii
         // *needed* due to zconfig_save()/zconfig_chunk_load() weakness
         {
-            char* encoded;
-            encoded = s_string_encode(fty_proto_description(cursor));
+            char* encoded = s_string_encode(fty_proto_description(cursor));
             fty_proto_set_description(cursor, "%s", encoded);
             zstr_free(&encoded);
             encoded = s_string_encode(fty_proto_metadata(cursor));
@@ -468,16 +469,11 @@ int alert_save_state(zlistx_t* alerts, const char* path, const char* filename, b
     }
 
     char* state_file = zsys_sprintf("%s/%s", path, filename);
-    int   rv         = zconfig_save(state, state_file);
-    if (rv == -1) {
-        zstr_free(&state_file);
-        zconfig_destroy(&state);
-        return rv;
-    }
-
+    int r = zconfig_save(state, state_file);
     zstr_free(&state_file);
     zconfig_destroy(&state);
-    return 0;
+
+    return (r == 0) ? 0 : -1;
 }
 
 fty_proto_t* alert_new(const char* rule, const char* element, const char* state, const char* severity,
@@ -486,6 +482,7 @@ fty_proto_t* alert_new(const char* rule, const char* element, const char* state,
     fty_proto_t* alert = fty_proto_new(FTY_PROTO_ALERT);
     if (!alert)
         return NULL;
+
     fty_proto_set_rule(alert, "%s", rule);
     fty_proto_set_name(alert, "%s", element);
     fty_proto_set_state(alert, "%s", state);
@@ -495,5 +492,6 @@ fty_proto_t* alert_new(const char* rule, const char* element, const char* state,
     fty_proto_set_action(alert, action);
     fty_proto_set_time(alert, timestamp);
     fty_proto_aux_insert(alert, "TTL", "%" PRIi64, ttl);
+
     return alert;
 }

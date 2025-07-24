@@ -33,7 +33,7 @@ systemctl start fty-alert-list
 
 ### Configuration file
 
-Configuration file - fty-alert-list.cfg - is currently ignored.
+Configuration file - fty-alert-list.cfg - is currently __ignored__.
 
 Agent has an alerts state file stored in /var/lib/fty/fty-alert-list/state\_file.
 
