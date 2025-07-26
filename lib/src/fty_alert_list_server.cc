@@ -172,7 +172,7 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
 
     bool send = true; // default, publish
 
-    // for now, work with cursor
+    // for now, work with 'cursor'
 
     if (!found) {
         // Record creation time

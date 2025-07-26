@@ -27,6 +27,33 @@
 #define RFC_ALERTS_LIST_SUBJECT        "rfc-alerts-list"
 #define RFC_ALERTS_ACKNOWLEDGE_SUBJECT "rfc-alerts-acknowledge"
 
+static  fty_proto_t* alert_new(
+    const char* rule,
+    const char* element,
+    const char* state,
+    const char* severity,
+    const char* description,
+    uint64_t timestamp,
+    zlist_t** action,
+    int64_t ttl)
+{
+    fty_proto_t* alert = fty_proto_new(FTY_PROTO_ALERT);
+    if (alert) {
+        fty_proto_set_rule(alert, "%s", rule);
+        fty_proto_set_name(alert, "%s", element);
+        fty_proto_set_state(alert, "%s", state);
+        fty_proto_set_severity(alert, "%s", severity);
+        fty_proto_set_description(alert, "%s", description);
+        fty_proto_set_metadata(alert, "%s", "");
+        fty_proto_set_action(alert, action);
+        fty_proto_set_time(alert, timestamp);
+
+        fty_proto_aux_insert(alert, "TTL", "%" PRIi64, ttl);
+    }
+
+    return alert;
+}
+
 static zmsg_t* test_request_alerts_list(mlm_client_t* user_interface, const char* state, bool ex = false)
 {
     REQUIRE(user_interface);

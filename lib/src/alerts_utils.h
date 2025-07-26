@@ -24,9 +24,6 @@
 #include <czmq.h>
 #include <fty_proto.h>
 
-#define ACTION_EMAIL "EMAIL"
-#define ACTION_SMS   "SMS"
-
 /// load alert state from disk
 /// 0 - success, -1 - error
 int alert_load_state(zlistx_t* alerts, const char* path, const char* filename);
@@ -34,11 +31,6 @@ int alert_load_state(zlistx_t* alerts, const char* path, const char* filename);
 /// save alert state to disk
 /// 0 - success, -1 - error
 int alert_save_state(zlistx_t* alerts, const char* path, const char* filename, bool verbose);
-
-/// create new alert
-/// returns new alert on success, NULL on failure
-fty_proto_t* alert_new(const char* rule, const char* element, const char* state, const char* severity,
-    const char* description, uint64_t timestamp, zlist_t** action, int64_t ttl);
 
 /// czmq_comparator of two alert's identifiers; alert is identified by pair
 /// (name, element) 0 - same, 1 - different

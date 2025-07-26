@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 
         if ((arg == "-h") || (arg == "--help")) {
             printf("%s [options] ...\n", argv[0]);
-            printf("  -v/--verbose  verbose test output\n");
+            printf("  -v/--verbose  verbose output\n");
             printf("  -h/--help     this information\n");
             return EXIT_SUCCESS;
         }
