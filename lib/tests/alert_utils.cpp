@@ -22,7 +22,7 @@
 #define ACTION_EMAIL "EMAIL"
 #define ACTION_SMS   "SMS"
 
-static  fty_proto_t* alert_new(
+static fty_proto_t* alert_new(
     const char* rule,
     const char* element,
     const char* state,
@@ -44,6 +44,10 @@ static  fty_proto_t* alert_new(
         fty_proto_set_time(alert, timestamp);
 
         fty_proto_aux_insert(alert, "TTL", "%" PRIi64, ttl);
+
+        if (action) {
+            CHECK((*action) == NULL); // alert takes ownership
+        }
     }
 
     return alert;
@@ -240,7 +244,7 @@ TEST_CASE("alerts utils test")
         zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
         zlist_append(actions, const_cast<char*>(ACTION_SMS));
         fty_proto_t* alert = alert_new("Threshold", "ups", "ACTIVE", "high", "description", 1, &actions, 0);
-        zlist_destroy(&actions);
+        REQUIRE(alert);
 
         CHECK(streq(fty_proto_rule(alert), "Threshold"));
         CHECK(streq(fty_proto_name(alert), "ups"));
@@ -252,6 +256,9 @@ TEST_CASE("alerts utils test")
         CHECK(nullptr == fty_proto_action_next(alert));
         CHECK(fty_proto_time(alert) == 1);
 
+        CHECK(fty_proto_aux_size(alert) == 1); // ttl
+        CHECK(fty_proto_aux_number(alert, "TTL", 99) == 0);
+
         fty_proto_destroy(&alert);
 
         actions = zlist_new();
@@ -260,19 +267,23 @@ TEST_CASE("alerts utils test")
         zlist_append(actions, const_cast<char*>("Holub"));
         zlist_append(actions, const_cast<char*>("Morse code"));
         alert = alert_new("Simple@Rule@Because", "karolkove zelezo", "ACTIVE", "high Severity",
-            "Holiday \nInn hotel 243", 10101795, &actions, 0);
-        zlist_destroy(&actions);
+            "Holiday \nInn hotel 243", 10101795, &actions, 123);
+        REQUIRE(alert);
 
         CHECK(streq(fty_proto_rule(alert), "Simple@Rule@Because"));
         CHECK(streq(fty_proto_name(alert), "karolkove zelezo"));
         CHECK(streq(fty_proto_state(alert), "ACTIVE"));
         CHECK(streq(fty_proto_severity(alert), "high Severity"));
         CHECK(streq(fty_proto_description(alert), "Holiday \nInn hotel 243"));
-        CHECK(streq(fty_proto_action_first(alert), "SMS"));
+        CHECK(streq(fty_proto_action_first(alert), ACTION_SMS));
         CHECK(streq(fty_proto_action_next(alert), "Holub"));
         CHECK(streq(fty_proto_action_next(alert), "Morse code"));
         CHECK(nullptr == fty_proto_action_next(alert));
         CHECK(fty_proto_time(alert) == 10101795);
+
+        CHECK(fty_proto_aux_size(alert) == 1); // ttl
+        CHECK(fty_proto_aux_number(alert, "TTL", 0) == 123);
+        CHECK(fty_proto_aux_number(alert, "fake", 99) == 99);
 
         fty_proto_destroy(&alert);
     }
@@ -281,27 +292,23 @@ TEST_CASE("alerts utils test")
     //  *****   alert_id_comparator    *****
     //  ************************************
 
-
     // test case 1a:
     //  alerts are completely the same
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -311,23 +318,20 @@ TEST_CASE("alerts utils test")
     //  different meta-data which represents real world use case of one alert
     //  at two different times
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 = alert_new(
-            "temperature.average@DC-Roztoky", "ups-9", "ACK-IGNORE", "some description", "high", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACK-IGNORE", "some description", "high", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -336,22 +340,19 @@ TEST_CASE("alerts utils test")
     //  alerts have the same identifier,
     //  different as well as missing meta-data
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 20, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 20, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -360,22 +361,19 @@ TEST_CASE("alerts utils test")
     //  alerts have the same identifier - rule name has different case
     //  different as well as missing meta-data
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("Temperature.Average@dC-roztoky", "ups-9", "ACTIVE", "some description", "low", 20, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("Temperature.Average@dC-roztoky", "ups-9", "ACTIVE", "some description", "low", 20, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -384,21 +382,18 @@ TEST_CASE("alerts utils test")
     // alerts don't have the same identifier - different rule
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Lab", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions2, 0);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Lab", "ups-9", "ACK-WIP", nullptr, "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions, 0);
         CHECK(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -407,21 +402,18 @@ TEST_CASE("alerts utils test")
     // alerts don't have the same identifier - different element_src
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "xcuy;v weohuif", "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "xcuy;v weohuif", "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -430,21 +422,18 @@ TEST_CASE("alerts utils test")
     // alerts do have the same identifier - case of element_src is ignored now
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "Ups-9", "ACK-WIP", nullptr, "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "Ups-9", "ACK-WIP", nullptr, "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -453,68 +442,60 @@ TEST_CASE("alerts utils test")
     // test case 3:
     // alerts don't have the same identifier -different element_src, rule
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", nullptr, "high", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.humidity@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", nullptr, "high", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.humidity@DC-Roztoky", "ups-9", "ACTIVE", nullptr, "low", 20, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     // unicode
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 = alert_new(
-            "realpower.DeFault", "ŽlUťOUčKý kůň супер", "ACTIVE", "some description", "low", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("realpower.DeFault", "ŽlUťOUčKý kůň супер", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
         fty_proto_t* alert2 = alert_new("realpower.default", "\u017dlu\u0165ou\u010dk\xc3\xbd K\u016f\xc5\x88 супер",
-            "ACK-SILENCE", "some description 2", "high", 100, &actions2, 0);
-        CHECK(alert2);
+            "ACK-SILENCE", "some description 2", "high", 100, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 = alert_new(
-            "realpower.DeFault", "Žluťoučký kůň супер ", "ACTIVE", "some description", "low", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 = alert_new(
-            "realpower.default", "Žluťoučký kůň супер", "ACK-SILENCE", "some description 2", "high", 100, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("realpower.DeFault", "Žluťoučký kůň супер ", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("realpower.default", "Žluťoučký kůň супер", "ACK-SILENCE", "some description 2", "high", 100, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_id_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -526,9 +507,9 @@ TEST_CASE("alerts utils test")
         zlist_t* actions = zlist_new();
         zlist_autofree(actions);
         zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions, 0);
-        CHECK(alert);
+        fty_proto_t* alert = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert);
+
         CHECK(is_alert_identified(alert, "temperature.average@DC-Roztoky", "ups-9") == 1);
         CHECK(is_alert_identified(alert, "Temperature.Average@dC-Roztoky", "ups-9") == 1);
         CHECK(is_alert_identified(alert, "humidity@DC-Roztoky", "ups-9") == 0);
@@ -536,35 +517,34 @@ TEST_CASE("alerts utils test")
         CHECK(is_alert_identified(alert, "temperature.average@DC-Roztoky", "") == 0);
         CHECK(is_alert_identified(alert, "temperature.average@DC-Roztoky", "epDU") == 0);
         CHECK(is_alert_identified(alert, "Temperature.Average@dC-Roztoky", "epDU") == 0);
+
         fty_proto_destroy(&alert);
-        zlist_destroy(&actions);
     }
 
     {
         zlist_t* actions = zlist_new();
         zlist_autofree(actions);
         zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert = alert_new(
-            "temperature.average@DC-Roztoky", "ta2€супер14159", "ACTIVE", "some description", "low", 10, &actions, 0);
-        CHECK(alert);
+        fty_proto_t* alert = alert_new("temperature.average@DC-Roztoky", "ta2€супер14159", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert);
+
         CHECK(is_alert_identified(alert, "temperature.average@DC-Roztoky", "ups-9") == 0);
-        CHECK(is_alert_identified(
-                  alert, "temperature.average@dc-roztoky", "ta2\u20ac\u0441\u0443\u043f\u0435\u044014159") == 1);
+        CHECK(is_alert_identified(alert, "temperature.average@dc-roztoky", "ta2\u20ac\u0441\u0443\u043f\u0435\u044014159") == 1);
+
         fty_proto_destroy(&alert);
-        zlist_destroy(&actions);
     }
 
     {
         zlist_t* actions = zlist_new();
         zlist_autofree(actions);
         zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert = alert_new(
-            "temperature.average@DC-Roztoky", "ŽlUťOUčKý kůň", "ACTIVE", "some description", "low", 10, &actions, 0);
-        CHECK(alert);
+        fty_proto_t* alert = alert_new("temperature.average@DC-Roztoky", "ŽlUťOUčKý kůň", "ACTIVE", "some description", "low", 10, &actions, 0);
+        REQUIRE(alert);
+
         CHECK(is_alert_identified(alert, "temperature.average@dc-roztoky", "ŽlUťOUčKý kůň") == 1);
         CHECK(is_alert_identified(alert, "temperature.averageDC-Roztoky", "ŽlUťOUčKý kůň") == 0);
+
         fty_proto_destroy(&alert);
-        zlist_destroy(&actions);
     }
 
     //  *********************************
@@ -574,23 +554,20 @@ TEST_CASE("alerts utils test")
     // test case 1a:
     //  alerts are completelly the same
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -598,23 +575,20 @@ TEST_CASE("alerts utils test")
     // test case 1b:
     //  alerts are same - rule different case
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@dC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@dC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -624,115 +598,100 @@ TEST_CASE("alerts utils test")
 
     //  severity is case sensitive
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "lOw", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "lOw", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     //  state is case sensitive
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "aCTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "aCTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     //  element_src is case insensitive
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "Ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "Ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     //  description is case sensitive
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some Description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some Description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     //  time is different
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 35, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 35, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -740,23 +699,20 @@ TEST_CASE("alerts utils test")
     // test case 2g:
     //  action is case sensitive
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>("sms"));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>("sms"));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -764,21 +720,18 @@ TEST_CASE("alerts utils test")
     // test case 3a:
     //  fields missing in both messages are equal
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", nullptr, nullptr, 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", nullptr, nullptr, 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", nullptr, nullptr, 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", nullptr, nullptr, 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 0);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -786,66 +739,58 @@ TEST_CASE("alerts utils test")
     // test case 3b:
     //  fields missing in either of messages is not equal
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", nullptr, 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", nullptr, 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 = alert_new(nullptr, "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new(nullptr, "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", nullptr, "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
@@ -853,182 +798,158 @@ TEST_CASE("alerts utils test")
     // test case 4:
     //  different fields
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 = alert_new(
-            "temperature.humidity@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.humidity@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ups-9", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "hugh", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "hugh", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACTIVE", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 = alert_new(
-            "temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "shitty description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "shitty description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 1, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 1, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert2 =
-            alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
+        fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky", "epdu", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
 
     // unicode
     {
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        fty_proto_t* alert1 = alert_new(
-            "temperature.average@DC-Roztoky", "ŽlUťOUčKý kůň", "ACK-WIP", "low", "some description", 10, &actions1, 0);
-        CHECK(alert1);
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
+        zlist_t* actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+        fty_proto_t* alert1 = alert_new("temperature.average@DC-Roztoky", "ŽlUťOUčKý kůň", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert1);
+
+        actions = zlist_new();
+        zlist_autofree(actions);
+        zlist_append(actions, const_cast<char*>(ACTION_SMS));
         fty_proto_t* alert2 = alert_new("temperature.average@DC-Roztoky",
-            "\u017dlu\u0165ou\u010dk\xc3\xbd K\u016f\xc5\x88", "ACK-WIP", "low", "some description", 10, &actions2, 0);
-        CHECK(alert2);
+            "\u017dlu\u0165ou\u010dk\xc3\xbd K\u016f\xc5\x88", "ACK-WIP", "low", "some description", 10, &actions, 0);
+        REQUIRE(alert2);
 
         CHECK(alert_comparator(alert1, alert2) == 1);
 
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
         fty_proto_destroy(&alert1);
         fty_proto_destroy(&alert2);
     }
-
 
     // TODO: action can be mixed
 
@@ -1038,7 +959,6 @@ TEST_CASE("alerts utils test")
     //  *********************************
 
     {
-
         // Test case #1:
         //  Fill list, store, load, compare one by one
         zlistx_t* alerts = zlistx_new();
@@ -1046,58 +966,70 @@ TEST_CASE("alerts utils test")
         zlistx_set_destructor(alerts, reinterpret_cast<czmq_destructor*>(fty_proto_destroy));
         zlistx_set_duplicator(alerts, reinterpret_cast<czmq_duplicator*>(fty_proto_dup));
 
-        zlist_t* actions1 = zlist_new();
-        zlist_autofree(actions1);
-        zlist_append(actions1, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions1, const_cast<char*>(ACTION_SMS));
-        fty_proto_t* alert = alert_new("Rule1", "Element1", "ACTIVE", "high", "xyz", 1, &actions1, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
-
-        zlist_t* actions2 = zlist_new();
-        zlist_autofree(actions2);
-        zlist_append(actions2, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions2, const_cast<char*>(ACTION_SMS));
-        alert = alert_new("Rule1", "Element2", "RESOLVED", "high", "xyz", 20, &actions2, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
-
-        zlist_t* actions3 = zlist_new();
-        zlist_autofree(actions3);
-        zlist_append(actions3, const_cast<char*>(ACTION_SMS));
-        alert = alert_new("Rule2", "Element1", "ACK-WIP", "low", "this is description", 152452412, &actions3, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
-
-        zlist_t* actions4 = zlist_new();
-        zlist_autofree(actions4);
-        zlist_append(actions4, const_cast<char*>(ACTION_EMAIL));
-        alert = alert_new("Rule2", "Element2", "ACK-SILENCE", "high", "x", 5, &actions4, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
-
-        zlist_t* actions5 = zlist_new();
-        zlist_autofree(actions5);
-        zlist_append(actions5, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions5, const_cast<char*>(ACTION_SMS));
-        alert = alert_new("Rule1", "Element3", "RESOLVED", "a", "y", 50, &actions5, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
-
-        zlist_t* actions6 = zlist_new();
-        zlist_autofree(actions6);
-        zlist_append(actions6, const_cast<char*>(ACTION_EMAIL));
-        zlist_append(actions6, const_cast<char*>(ACTION_SMS));
-        alert = alert_new(
-            "realpower.default", "ŽlUťOUčKý kůň супер", "ACTIVE", "low", "unicode test case #1", 60, &actions6, 0);
-        CHECK(alert);
-        zlistx_add_end(alerts, alert);
-        fty_proto_destroy(&alert);
+        {   //1
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+            zlist_append(actions, const_cast<char*>(ACTION_SMS));
+            fty_proto_t* alert = alert_new("Rule1", "Element1", "ACTIVE", "high", "xyz", 1, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
+        {   //2
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+            zlist_append(actions, const_cast<char*>(ACTION_SMS));
+            fty_proto_t* alert = alert_new("Rule1", "Element2", "RESOLVED", "high", "xyz", 20, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
+        {   //3
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_SMS));
+            fty_proto_t* alert = alert_new("Rule2", "Element1", "ACK-WIP", "low", "this is description", 152452412, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
+        {   //4
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+            fty_proto_t* alert = alert_new("Rule2", "Element2", "ACK-SILENCE", "high", "x", 5, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
+        {   //5
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+            zlist_append(actions, const_cast<char*>(ACTION_SMS));
+            fty_proto_t* alert = alert_new("Rule1", "Element3", "RESOLVED", "a", "y", 50, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
+        {   //6
+            zlist_t* actions = zlist_new();
+            zlist_autofree(actions);
+            zlist_append(actions, const_cast<char*>(ACTION_EMAIL));
+            zlist_append(actions, const_cast<char*>(ACTION_SMS));
+            fty_proto_t* alert = alert_new("realpower.default", "ŽlUťOUčKý kůň супер", "ACTIVE", "low", "unicode test case #1", 60, &actions, 0);
+            REQUIRE(alert);
+            zlistx_add_end(alerts, alert);
+            fty_proto_destroy(&alert);
+            zlist_destroy(&actions);
+        }
 
         int rv = alert_save_state(alerts, SELFTEST_RW, "test_state_file", true);
         CHECK(rv == 0);
@@ -1108,6 +1040,7 @@ TEST_CASE("alerts utils test")
         CHECK(alerts2);
         zlistx_set_destructor(alerts2, reinterpret_cast<czmq_destructor*>(fty_proto_destroy));
         zlistx_set_duplicator(alerts2, reinterpret_cast<czmq_duplicator*>(fty_proto_dup));
+
         rv = alert_load_state(alerts2, SELFTEST_RW, "test_state_file");
         CHECK(rv == 0);
 
@@ -1177,13 +1110,6 @@ TEST_CASE("alerts utils test")
         CHECK(fty_proto_time(cursor) == 60);
 
         zlistx_destroy(&alerts2);
-
-        zlist_destroy(&actions1);
-        zlist_destroy(&actions2);
-        zlist_destroy(&actions3);
-        zlist_destroy(&actions4);
-        zlist_destroy(&actions5);
-        zlist_destroy(&actions6);
     }
 
     // Test case #2:

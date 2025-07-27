@@ -27,7 +27,7 @@
 #define RFC_ALERTS_LIST_SUBJECT        "rfc-alerts-list"
 #define RFC_ALERTS_ACKNOWLEDGE_SUBJECT "rfc-alerts-acknowledge"
 
-static  fty_proto_t* alert_new(
+static fty_proto_t* alert_new(
     const char* rule,
     const char* element,
     const char* state,
@@ -49,6 +49,10 @@ static  fty_proto_t* alert_new(
         fty_proto_set_time(alert, timestamp);
 
         fty_proto_aux_insert(alert, "TTL", "%" PRIi64, ttl);
+
+        if (action) {
+            CHECK((*action) == NULL); // alert takes ownership
+        }
     }
 
     return alert;
@@ -295,6 +299,7 @@ static void test_alert_publish(mlm_client_t* producer, mlm_client_t* consumer, z
     REQUIRE(copy);
     zmsg_t* zmessage = fty_proto_encode(&copy);
     REQUIRE(zmessage);
+
     int rv = mlm_client_send(producer, "Nobody here cares about this.", &zmessage);
     REQUIRE(rv == 0);
     zclock_sleep(100);
@@ -303,6 +308,7 @@ static void test_alert_publish(mlm_client_t* producer, mlm_client_t* consumer, z
     fty_proto_t* received = fty_proto_decode(&zmessage);
 
     CHECK(alert_comparator(*message, received) == 0);
+
     fty_proto_destroy(&received);
     fty_proto_destroy(message);
 }
@@ -889,38 +895,28 @@ TEST_CASE("alert list server test")
     zlistx_destroy(&testAlerts);
 
     save_alerts();
+
     zactor_destroy(&fty_al_server_mailbox);
     zactor_destroy(&fty_al_server_stream);
     mlm_client_destroy(&consumer);
     mlm_client_destroy(&producer);
     mlm_client_destroy(&ui);
     zactor_destroy(&server);
+
     destroy_alert();
 
-    if (nullptr != actions1)
-        zlist_destroy(&actions1);
-    if (nullptr != actions2)
-        zlist_destroy(&actions2);
-    if (nullptr != actions3)
-        zlist_destroy(&actions3);
-    if (nullptr != actions4)
-        zlist_destroy(&actions4);
-    if (nullptr != actions5)
-        zlist_destroy(&actions5);
-    if (nullptr != actions6)
-        zlist_destroy(&actions6);
-    if (nullptr != actions7)
-        zlist_destroy(&actions7);
-    if (nullptr != actions8)
-        zlist_destroy(&actions8);
-    if (nullptr != actions9)
-        zlist_destroy(&actions9);
-    if (nullptr != actions10)
-        zlist_destroy(&actions10);
-    if (nullptr != actions11)
-        zlist_destroy(&actions11);
-    if (nullptr != actions12)
-        zlist_destroy(&actions12);
+    zlist_destroy(&actions1);
+    zlist_destroy(&actions2);
+    zlist_destroy(&actions3);
+    zlist_destroy(&actions4);
+    zlist_destroy(&actions5);
+    zlist_destroy(&actions6);
+    zlist_destroy(&actions7);
+    zlist_destroy(&actions8);
+    zlist_destroy(&actions9);
+    zlist_destroy(&actions10);
+    zlist_destroy(&actions11);
+    zlist_destroy(&actions12);
 
     printf("OK\n");
 }
