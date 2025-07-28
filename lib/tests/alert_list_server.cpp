@@ -154,7 +154,8 @@ static void test_request_alerts_acknowledge(mlm_client_t* ui, mlm_client_t* cons
         zstr_free(&element_reply);
         zstr_free(&state_reply);
         CHECK(found == 1);
-    } else {
+    }
+    else {
         CHECK(streq(ok, "ERROR"));
         char* reason = zmsg_popstr(reply);
         CHECK((streq(reason, "BAD_STATE") || streq(reason, "NOT_FOUND")));
@@ -317,38 +318,45 @@ TEST_CASE("alert list server test")
 {
     #define SELFTEST_RO "tests/selftest-ro"
 
-    static const char* endpoint = "inproc://fty-lm-server-test";
+    const char* ENDPOINT = "inproc://fty-al-server-test";
 
     // Malamute
     zactor_t* server = zactor_new(mlm_server, const_cast<char*>("Malamute"));
-    zstr_sendx(server, "BIND", endpoint, nullptr);
+    zstr_sendx(server, "BIND", ENDPOINT, nullptr);
 
     // User Interface
     mlm_client_t* ui = mlm_client_new();
-    int           rv = mlm_client_connect(ui, endpoint, 1000, "UI");
+    REQUIRE(ui);
+    int rv = mlm_client_connect(ui, ENDPOINT, 1000, "UI");
     REQUIRE(rv == 0);
 
     // Alert Producer
     mlm_client_t* producer = mlm_client_new();
-    rv                     = mlm_client_connect(producer, endpoint, 1000, "PRODUCER");
+    REQUIRE(producer);
+    rv = mlm_client_connect(producer, ENDPOINT, 1000, "PRODUCER");
     REQUIRE(rv == 0);
     rv = mlm_client_set_producer(producer, "_ALERTS_SYS");
     REQUIRE(rv == 0);
 
     // Arbitrary Alert Consumer
     mlm_client_t* consumer = mlm_client_new();
-    rv                     = mlm_client_connect(consumer, endpoint, 1000, "CONSUMER");
+    REQUIRE(consumer);
+    rv = mlm_client_connect(consumer, ENDPOINT, 1000, "CONSUMER");
     REQUIRE(rv == 0);
     rv = mlm_client_set_consumer(consumer, "ALERTS", ".*");
     REQUIRE(rv == 0);
 
     // Alert Lists (assume empty)
     init_alert_private(SELFTEST_RO, "_faked_empty_alerts_", false);
-    zactor_t* fty_al_server_stream  = zactor_new(fty_alert_list_server_stream, const_cast<char*>(endpoint));
-    zactor_t* fty_al_server_mailbox = zactor_new(fty_alert_list_server_mailbox, const_cast<char*>(endpoint));
+
+    zactor_t* fty_al_server_stream  = zactor_new(fty_alert_list_server_stream, const_cast<char*>(ENDPOINT));
+    zactor_t* fty_al_server_mailbox = zactor_new(fty_alert_list_server_mailbox, const_cast<char*>(ENDPOINT));
+    REQUIRE(fty_al_server_stream);
+    REQUIRE(fty_al_server_mailbox);
 
     // maintain a list of active alerts (that serves as "expected results")
     zlistx_t* testAlerts = zlistx_new();
+    REQUIRE(testAlerts);
     zlistx_set_destructor(testAlerts, reinterpret_cast<czmq_destructor*>(fty_proto_destroy));
     zlistx_set_duplicator(testAlerts, reinterpret_cast<czmq_duplicator*>(fty_proto_dup));
     zlistx_set_comparator(testAlerts, reinterpret_cast<czmq_comparator*>(alert_id_comparator));

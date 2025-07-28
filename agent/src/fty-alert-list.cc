@@ -27,7 +27,9 @@
 
 static int s_ttl_cleanup_timer(zloop_t* /*loop*/, int /*timer_id*/, void* output)
 {
-    zstr_send(output, "TTLCLEANUP");
+    if (output) {
+        zstr_send(output, "TTLCLEANUP");
+    }
     return 0;
 }
 
@@ -64,8 +66,12 @@ int main(int argc, char* argv[])
 
     log_info("%s starting...", AGENT_NAME);
 
-    // init the alert list (common with stream and mailbox treatment)
-    init_alert(verbose); // read alerts state_file
+    // init/read the alerts list (common with stream and mailbox treatment)
+    int r = init_alert(verbose);
+    if (r != 0) {
+        log_fatal("init_alert() failed");
+        return EXIT_FAILURE;
+    }
 
     // initialize actors and timer for stream
 
@@ -93,7 +99,10 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    zloop_timer(ttlcleanup_stream, 60 * 1000, 0, s_ttl_cleanup_timer, alert_list_server_stream);
+    r = zloop_timer(ttlcleanup_stream, 60 * 1000, 0, s_ttl_cleanup_timer, alert_list_server_stream);
+    if (r < 0) {
+        log_error("ttlcleanup timer registration failed");
+    }
     zloop_start(ttlcleanup_stream);
 
     log_info("%s started", AGENT_NAME);

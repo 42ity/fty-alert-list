@@ -132,6 +132,7 @@ int is_alert_identified(fty_proto_t* alert, const char* rule_name, const char* e
     return 0;
 }
 
+// returns 0 is equal, else 1
 int alert_comparator(fty_proto_t* alert1, fty_proto_t* alert2)
 {
     assert(alert1);
@@ -143,34 +144,34 @@ int alert_comparator(fty_proto_t* alert1, fty_proto_t* alert2)
         return 1;
     }
 
-    // rule
-    if (strcasecmp(fty_proto_rule(alert1), fty_proto_rule(alert2)) != 0)
+    // misc properties diff
+    if ((strcasecmp(fty_proto_rule(alert1), fty_proto_rule(alert2)) != 0) // rulename
+        || !UTF8::utf8eq(fty_proto_name(alert1), fty_proto_name(alert2)) // assetname
+        || !streq(fty_proto_state(alert1), fty_proto_state(alert2)) // state
+        || !streq(fty_proto_severity(alert1), fty_proto_severity(alert2)) // severity
+        || !streq(fty_proto_description(alert1), fty_proto_description(alert2)) // description
+        || (fty_proto_time(alert1) != fty_proto_time(alert2)) // timestamp
+    ) {
         return 1;
-    // element_src
-    if (!UTF8::utf8eq(fty_proto_name(alert1), fty_proto_name(alert2)))
-        return 1;
-    // state
-    if (!streq(fty_proto_state(alert1), fty_proto_state(alert2)))
-        return 1;
-    // severity
-    if (!streq(fty_proto_severity(alert1), fty_proto_severity(alert2)))
-        return 1;
-    // description
-    if (!streq(fty_proto_description(alert1), fty_proto_description(alert2)))
-        return 1;
-    // time
-    if (fty_proto_time(alert1) != fty_proto_time(alert2))
-        return 1;
+    }
 
     // action
     // TODO: it might be needed to parse action and compare the individual actions
     //       i.e "EMAIL|SMS" eq "SMS|EMAIL". For now, we don't recognize this and for
     //       now it does not create a problem.
+
+    size_t size1 = fty_proto_action(alert1) ? zlist_size(fty_proto_action(alert1)) : 0;
+    size_t size2 = fty_proto_action(alert2) ? zlist_size(fty_proto_action(alert2)) : 0;
+    if (size1 != size2) {
+        return 1;
+    }
+
     const char* action1 = fty_proto_action_first(alert1);
     const char* action2 = fty_proto_action_first(alert2);
     while (action1 && action2) {
-        if (!streq(action1, action2))
+        if (!streq(action1, action2)) {
             return 1;
+        }
         action1 = fty_proto_action_next(alert1);
         action2 = fty_proto_action_next(alert2);
     }

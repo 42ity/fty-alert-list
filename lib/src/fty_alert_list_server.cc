@@ -38,25 +38,27 @@
 static const char* STATE_PATH = "/var/lib/fty/fty-alert-list";
 static const char* STATE_FILE = "state_file";
 
-static zlistx_t*                      alerts = nullptr;
+static zlistx_t* alerts{nullptr};
+static std::mutex alertMtx;
 static std::map<fty_proto_t*, time_t> alertsLastSent;
-static std::mutex                     alertMtx;
-static bool                           verbose = false;
+static bool verbose{false};
 
 static void s_set_alert_lifetime(zhash_t* exp, fty_proto_t* alert)
 {
-    if (!(exp && alert))
+    if (!(exp && alert)) {
         return;
+    }
 
     int64_t ttl = fty_proto_ttl(alert);
     const char* rule = fty_proto_rule(alert);
-    if (!(ttl && rule))
+    if (!(ttl && rule)) {
         return;
+    }
 
     int64_t* time = reinterpret_cast<int64_t*>(malloc(sizeof(*time)));
     if (time) {
-        log_debug(" ##### rule %s with ttl %" PRIi64, rule, ttl);
-        *time = (zclock_mono() / 1000) + ttl;
+        log_debug("# rule %s with ttl %" PRIi64, rule, ttl);
+        *time = (zclock_mono() / 1000) + ttl; // expiry time (sec)
         zhash_update(exp, rule, time);
         zhash_freefn(exp, rule, free);
     }
@@ -67,58 +69,60 @@ static void s_set_alert_lifetime(zhash_t* exp, fty_proto_t* alert)
 
 static bool s_alert_expired(zhash_t* exp, fty_proto_t* alert)
 {
-    if (!(exp && alert))
-        return false;
-
-    const char* rule = fty_proto_rule(alert);
-    if (!rule)
-        return false;
-
-    int64_t now = zclock_mono() / 1000;
-    int64_t* time = reinterpret_cast<int64_t*>(zhash_lookup(exp, rule));
-    return time ? (now > (*time)) : false;
+    if (exp && alert) {
+        const char* rule = fty_proto_rule(alert);
+        int64_t* time = rule ? reinterpret_cast<int64_t*>(zhash_lookup(exp, rule)) : nullptr;
+        if (time) {
+            return (zclock_mono() / 1000) > (*time);
+        }
+    }
+    return false;
 }
 
 static void s_clear_long_time_expired(zhash_t* exp)
 {
-    if (!exp)
+    if (!exp) {
         return;
+    }
 
     int64_t now = zclock_mono() / 1000;
 
     zlist_t* keys = zhash_keys(exp);
-    const char* rule = reinterpret_cast<char*>(zlist_first(keys));
-    while (rule) {
+    for (void* it = zlist_first(keys); it; it = zlist_next(keys)) {
+        const char* rule = reinterpret_cast<char*>(it);
         int64_t* p = reinterpret_cast<int64_t*>(zhash_lookup(exp, rule));
         int64_t time = p ? (*p) : 0;
-        if (now > (time + 3600)) { // expired an hour ago
+        if (now > (time + 3600)) { // expired an hour ago (sec)
             zhash_delete(exp, rule);
         }
-        rule = reinterpret_cast<char*>(zlist_next(keys));
     }
     zlist_destroy(&keys);
 }
 
 static void s_resolve_expired_alerts(zhash_t* exp)
 {
-    if (!(exp && alerts))
+    if (!(exp && alerts)) {
         return;
+    }
 
     alertMtx.lock();
 
-    fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(zlistx_first(alerts));
-    while (cursor) {
-        if (s_alert_expired(exp, cursor) && streq(fty_proto_state(cursor), "ACTIVE")) {
+    for (void* it = zlistx_first(alerts); it; it = zlistx_next(alerts)) {
+        fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(it);
+
+        if (streq(fty_proto_state(cursor), "ACTIVE")
+            && s_alert_expired(exp, cursor)
+        ) {
+            const std::string newDesc{JSONIFY("%s - %s", fty_proto_description(cursor), "TTLCLEANUP")};
+
+            fty_proto_set_description(cursor, "%s", newDesc.c_str());
             fty_proto_set_state(cursor, "%s", "RESOLVED");
-            std::string new_desc = JSONIFY("%s - %s", fty_proto_description(cursor), "TTLCLEANUP");
-            fty_proto_set_description(cursor, "%s", new_desc.c_str());
 
             if (verbose) {
-                log_debug("s_resolve_expired_alerts: resolving alert");
+                log_debug("s_resolve_expired_alerts: resolving alert '%s'", fty_proto_rule(cursor));
                 fty_proto_print(cursor);
             }
         }
-        cursor = reinterpret_cast<fty_proto_t*>(zlistx_next(alerts));
     }
 
     alertMtx.unlock();
@@ -143,8 +147,10 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
         return;
     }
 
-    // handle *only* ACTIVE or RESOLVED alerts
-    if (!(streq(fty_proto_state(newAlert), "ACTIVE") || streq(fty_proto_state(newAlert), "RESOLVED"))) {
+    // handle ACTIVE/RESOLVED alerts *only*
+    if (!(streq(fty_proto_state(newAlert), "ACTIVE")
+          || streq(fty_proto_state(newAlert), "RESOLVED"))
+    ) {
         fty_proto_destroy(&newAlert);
         log_warning("Message state not ACTIVE or RESOLVED. Not publishing any further.");
         return;
@@ -157,26 +163,30 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
 
     alertMtx.lock();
 
-    fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(zlistx_first(alerts));
-    while (cursor) {
-        if (alert_id_comparator(cursor, newAlert) == 0) {
+    fty_proto_t* cursor = NULL;
+    for (void* it = zlistx_first(alerts); it; it = zlistx_next(alerts)) {
+        fty_proto_t* cursor_ = reinterpret_cast<fty_proto_t*>(it);
+
+        if (alert_id_comparator(cursor_, newAlert) == 0) {
+            cursor = cursor_;
             break; // found (cursor)
         }
-        cursor = reinterpret_cast<fty_proto_t*>(zlistx_next(alerts));
     }
 
-    // for now, work with 'cursor'
+    // work with 'cursor'
 
-    bool send = true; // default, publish
+    int64_t now = zclock_mono() / 1000; // sec
+    bool send{true}; // default, publish
 
-    if (!cursor) { // new alert
+    if (!cursor) { // 1st time alert
         // Record creation time
         fty_proto_aux_insert(newAlert, "ctime", "%" PRIu64, fty_proto_time(newAlert));
 
         zlistx_add_end(alerts, newAlert);
         cursor = reinterpret_cast<fty_proto_t*>(zlistx_last(alerts));
-        alertsLastSent[cursor] = 0;
-        s_set_alert_lifetime(expirations, newAlert);
+
+        s_set_alert_lifetime(expirations, cursor);
+        alertsLastSent[cursor] = 0; // first time (not sent yet)
     }
     else {
         // Append creation time to new alert
@@ -232,7 +242,7 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
                 if (sameSeverity) {
                     // ... if we're not at risk of timing out
                     time_t lastSent = alertsLastSent[cursor];
-                    if ((zclock_mono() / 1000) < (lastSent + fty_proto_ttl(cursor) / 2)) {
+                    if (now < (lastSent + fty_proto_ttl(cursor) / 2)) {
                         send = false;
                     }
                 }
@@ -261,7 +271,7 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
         fty_proto_set_action(cursor, &actions); // actions owned by cursor
     }
 
-    if (send) {
+    if (send) { // NOTICE: use 'cursor'
         log_info("send %s (%s/%s)", fty_proto_rule(newAlert), fty_proto_severity(newAlert), fty_proto_state(newAlert));
 
         fty_proto_t* alert_dup = fty_proto_dup(newAlert);
@@ -276,9 +286,13 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
 
         if (r != 0) {
             log_error("mlm_client_send (subject = '%s', r: %d) failed", mlm_client_subject(client), r);
+            const auto& it = alertsLastSent.find(cursor);
+            if (it == alertsLastSent.cend()) {
+                alertsLastSent[cursor] = 0; // first time
+            }
         }
         else { // Update last sent time
-            alertsLastSent[cursor] = zclock_mono() / 1000;
+            alertsLastSent[cursor] = now;
         }
     }
 
@@ -297,13 +311,18 @@ static void s_send_error_response(mlm_client_t* client, const char* subject, con
     const char* sender = mlm_client_sender(client);
 
     zmsg_t* reply = zmsg_new();
+    if (!reply) {
+        log_error("zmsg_new() failed (sender: '%s', subject: '%s')",
+            sender, subject);
+        return;
+    }
     zmsg_addstr(reply, "ERROR");
     zmsg_addstr(reply, reason ? reason : "");
 
     int r = mlm_client_sendto(client, sender, subject, nullptr, 5000, &reply);
     zmsg_destroy(&reply);
     if (r != 0) {
-        log_error("mlm_client_sendto (sender = '%s', subject = '%s', timeout = '5000') failed.",
+        log_error("mlm_client_sendto failed (sender: '%s', subject: '%s', timeout = '5000')",
             sender, subject);
     }
 }
@@ -321,33 +340,35 @@ static void s_handle_rfc_alerts_list(mlm_client_t* client, zmsg_t** msg_p)
     zmsg_t* msg = *msg_p;
     *msg_p = NULL; // take ownership
 
-    char* command = zmsg_popstr(msg);
+    char* command = NULL;
+    char* correlation_id = NULL;
+    char* state = NULL;
+
+    #define CLEANUP { zstr_free(&state); zstr_free(&correlation_id); zstr_free(&command); }
+
+    command = zmsg_popstr(msg);
     if (!command || (!(streq(command, "LIST") || streq(command, "LIST_EX")))) {
-        zstr_free(&command);
+        CLEANUP;
         zmsg_destroy(&msg);
-        std::string err = TRANSLATE_ME("BAD_MESSAGE");
+        const std::string err{TRANSLATE_ME("BAD_MESSAGE")};
         s_send_error_response(client, subject, err.c_str());
         return;
     }
 
-    char* correlation_id = NULL;
     if (streq(command, "LIST_EX")) {
         correlation_id = zmsg_popstr(msg);
         if (!correlation_id) {
-            zstr_free(&correlation_id);
-            zstr_free(&command);
+            CLEANUP;
             zmsg_destroy(&msg);
-            std::string err = TRANSLATE_ME("BAD_MESSAGE");
+            const std::string err{TRANSLATE_ME("BAD_MESSAGE")};
             s_send_error_response(client, subject, err.c_str());
             return;
         }
     }
 
-    char* state = zmsg_popstr(msg);
+    state = zmsg_popstr(msg);
     if (!(state && is_list_request_state(state))) {
-        zstr_free(&state);
-        zstr_free(&correlation_id);
-        zstr_free(&command);
+        CLEANUP;
         zmsg_destroy(&msg);
         s_send_error_response(client, subject, "NOT_FOUND");
         return;
@@ -360,12 +381,11 @@ static void s_handle_rfc_alerts_list(mlm_client_t* client, zmsg_t** msg_p)
     if (correlation_id) { zmsg_addstr(reply, correlation_id); } // LIST_EX
     zmsg_addstr(reply, state);
 
-    zstr_free(&correlation_id); // useless
-    zstr_free(&command);
-
     alertMtx.lock();
-    fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(zlistx_first(alerts));
-    while (cursor) {
+
+    for (void* it = zlistx_first(alerts); it; it = zlistx_next(alerts)) {
+        fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(it);
+
         if (is_state_included(state, fty_proto_state(cursor))) {
             fty_proto_t* duplicate = fty_proto_dup(cursor);
             zmsg_t* result = fty_proto_encode(&duplicate);
@@ -388,17 +408,19 @@ static void s_handle_rfc_alerts_list(mlm_client_t* client, zmsg_t** msg_p)
 #else
             frame = zmsg_encode(result);
 #endif
-            zmsg_destroy(&result);
-            assert(frame);
+            if (!frame) {
+                log_error("frame is NULL");
+            }
+            else {
+                zmsg_append(reply, &frame);
+            }
 
-            zmsg_append(reply, &frame);
             zframe_destroy(&frame);
+            zmsg_destroy(&result);
         }
-        cursor = reinterpret_cast<fty_proto_t*>(zlistx_next(alerts));
     }
-    alertMtx.unlock();
 
-    zstr_free(&state); // useless
+    alertMtx.unlock();
 
     const char* sender = mlm_client_sender(client);
     int r = mlm_client_sendto(client, sender, subject, nullptr, 5000, &reply);
@@ -407,6 +429,9 @@ static void s_handle_rfc_alerts_list(mlm_client_t* client, zmsg_t** msg_p)
         log_error("mlm_client_sendto (sender = '%s', subject = '%s', timeout = '5000') failed.",
             sender, subject);
     }
+
+    CLEANUP; // useless
+    #undef CLEANUP
 }
 
 static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p)
@@ -423,6 +448,8 @@ static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p
     zmsg_t* msg = *msg_p;
     *msg_p = NULL; // take ownership
 
+    #define CLEANUP { zstr_free(&state); zstr_free(&element); zstr_free(&rule); }
+
     char* rule = zmsg_popstr(msg);
     char* element = zmsg_popstr(msg);
     char* state = zmsg_popstr(msg);
@@ -430,10 +457,8 @@ static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p
     zmsg_destroy(&msg); // useless
 
     if (!(rule && element && state)) {
-        zstr_free(&state);
-        zstr_free(&element);
-        zstr_free(&rule);
-        std::string err = TRANSLATE_ME("BAD_MESSAGE");
+        CLEANUP;
+        const std::string err{TRANSLATE_ME("BAD_MESSAGE")};
         s_send_error_response(client, subject, err.c_str());
         return;
     }
@@ -442,9 +467,7 @@ static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p
     if (!is_acknowledge_request_state(state)) {
         log_warning("state '%s' is not an acknowledge request state according to protocol '%s'.",
             state, subject);
-        zstr_free(&state);
-        zstr_free(&element);
-        zstr_free(&rule);
+        CLEANUP;
         s_send_error_response(client, subject, "BAD_STATE");
         return;
     }
@@ -452,32 +475,30 @@ static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p
     log_debug("s_handle_rfc_alerts_acknowledge (): rule == '%s' element == '%s' state == '%s'", rule, element, state);
     // check ('rule', 'element') pair
 
-    fty_proto_t* copy = NULL; // alert
+    fty_proto_t* copy = NULL; // of alert
     {
         alertMtx.lock();
 
-        fty_proto_t* cursor = reinterpret_cast<fty_proto_t*>(zlistx_first(alerts));
-        while (cursor) {
-            if (is_alert_identified(cursor, rule, element)) {
+        fty_proto_t* cursor = NULL;
+        for (void* it = zlistx_first(alerts); it; it = zlistx_next(alerts)) {
+            fty_proto_t* cursor_ = reinterpret_cast<fty_proto_t*>(it);
+
+            if (is_alert_identified(cursor_, rule, element)) {
+                cursor = cursor_;
                 break; // found (cursor)
             }
-            cursor = reinterpret_cast<fty_proto_t*>(zlistx_next(alerts));
         }
 
         if (!cursor) { // not found
             alertMtx.unlock();
-            zstr_free(&state);
-            zstr_free(&element);
-            zstr_free(&rule);
+            CLEANUP;
             s_send_error_response(client, subject, "NOT_FOUND");
             return;
         }
 
         if (streq(fty_proto_state(cursor), "RESOLVED")) {
             alertMtx.unlock();
-            zstr_free(&state);
-            zstr_free(&element);
-            zstr_free(&rule);
+            CLEANUP;
             s_send_error_response(client, subject, "BAD_STATE");
             return;
         }
@@ -505,9 +526,8 @@ static void s_handle_rfc_alerts_acknowledge(mlm_client_t* client, zmsg_t** msg_p
     zmsg_addstr(reply, element);
     zmsg_addstr(reply, state);
 
-    zstr_free(&state); // useless
-    zstr_free(&element);
-    zstr_free(&rule);
+    CLEANUP; // useless
+    #undef CLEANUP
 
     int r = mlm_client_sendto(client, sender, subject, nullptr, 5000, &reply);
     zmsg_destroy(&reply);
@@ -555,7 +575,7 @@ static void s_handle_mailbox_deliver(mlm_client_t* client, zmsg_t** msg_p)
     }
     else {
         log_error("Unexpetd subject '%s' (sender: '%s')", subject, sender);
-        std::string err = TRANSLATE_ME("UNKNOWN_PROTOCOL");
+        const std::string err{TRANSLATE_ME("UNKNOWN_PROTOCOL")};
         s_send_error_response(client, subject, err.c_str());
     }
     zmsg_destroy(msg_p);
@@ -603,9 +623,11 @@ void fty_alert_list_server_stream(zsock_t* pipe, void* args)
     zsock_signal(pipe, 0);
     log_info("client stream started");
 
+    const int POLL_TIMEOUT_MS = 30000; //ms
+
     while (!zsys_interrupted) {
 
-        void* which = zpoller_wait(poller, 10000);
+        void* which = zpoller_wait(poller, POLL_TIMEOUT_MS);
 
         if (which == NULL) {
             if (zpoller_terminated(poller) || zsys_interrupted) {
@@ -679,9 +701,11 @@ void fty_alert_list_server_mailbox(zsock_t* pipe, void* args)
     zsock_signal(pipe, 0);
     log_info("client mailbox started");
 
+    const int POLL_TIMEOUT_MS = 30000; //ms
+
     while (!zsys_interrupted) {
 
-        void* which = zpoller_wait(poller, 10000);
+        void* which = zpoller_wait(poller, POLL_TIMEOUT_MS);
 
         if (which == NULL) {
             if (zpoller_terminated(poller) || zsys_interrupted) {
@@ -729,6 +753,11 @@ void save_alerts()
 
 void init_alert_private(const char* path, const char* filename, bool verbose_)
 {
+    if (alerts) {
+        log_warning("alerts is in use. Destroying...");
+        destroy_alert();
+    }
+
     alerts = zlistx_new();
     if (!alerts) {
         log_error("zlistx_new() alerts failed");
@@ -743,9 +772,10 @@ void init_alert_private(const char* path, const char* filename, bool verbose_)
     verbose = verbose_;
 }
 
-void init_alert(bool verbose_)
+int init_alert(bool verbose_)
 {
     init_alert_private(STATE_PATH, STATE_FILE, verbose_);
+    return alerts ? 0 : -1;
 }
 
 void destroy_alert()
