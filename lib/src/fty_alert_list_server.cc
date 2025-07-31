@@ -238,11 +238,13 @@ static void s_handle_stream_deliver(mlm_client_t* client, zmsg_t** msg_p, zhash_
             else if (streq(fty_proto_state(cursor), "ACTIVE")) {
                 fty_proto_set_time(cursor, fty_proto_time(newAlert));
 
-                // Always active and same severity => don't publish...
+                // Always active and same severity...
                 if (sameSeverity) {
-                    // ... if we're not at risk of timing out
+                    // don't publish if we're not at risk of timing out
+                    // but resend at least every 120s (warranty ttl is >1 day!)
                     time_t lastSent = alertsLastSent[cursor];
-                    if (now < (lastSent + fty_proto_ttl(cursor) / 2)) {
+                    uint32_t ttl = MIN(fty_proto_ttl(newAlert), (2 * 120));
+                    if ((lastSent + (ttl / 2)) > now) {
                         send = false;
                     }
                 }
