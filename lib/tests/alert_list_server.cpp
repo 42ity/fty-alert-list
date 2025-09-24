@@ -1,6 +1,24 @@
+/*  ========================================================================
+    Copyright (C) 2020 Eaton
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    ========================================================================
+*/
+
 #include <catch2/catch.hpp>
+
 #include "src/fty_alert_list_server.h"
 #include "src/alerts_utils.h"
+
 #include <fty_proto.h>
 #include <malamute.h>
 #include <fty_common_utf8.h>
@@ -8,6 +26,37 @@
 
 #define RFC_ALERTS_LIST_SUBJECT        "rfc-alerts-list"
 #define RFC_ALERTS_ACKNOWLEDGE_SUBJECT "rfc-alerts-acknowledge"
+
+static fty_proto_t* alert_new(
+    const char* rule,
+    const char* element,
+    const char* state,
+    const char* severity,
+    const char* description,
+    uint64_t timestamp,
+    zlist_t** action,
+    int64_t ttl)
+{
+    fty_proto_t* alert = fty_proto_new(FTY_PROTO_ALERT);
+    if (alert) {
+        fty_proto_set_rule(alert, "%s", rule);
+        fty_proto_set_name(alert, "%s", element);
+        fty_proto_set_state(alert, "%s", state);
+        fty_proto_set_severity(alert, "%s", severity);
+        fty_proto_set_description(alert, "%s", description);
+        fty_proto_set_metadata(alert, "%s", "");
+        fty_proto_set_action(alert, action);
+        fty_proto_set_time(alert, timestamp);
+
+        fty_proto_aux_insert(alert, "TTL", "%" PRIi64, ttl);
+
+        if (action) {
+            CHECK((*action) == NULL); // alert takes ownership
+        }
+    }
+
+    return alert;
+}
 
 static zmsg_t* test_request_alerts_list(mlm_client_t* user_interface, const char* state, bool ex = false)
 {
@@ -24,10 +73,14 @@ static zmsg_t* test_request_alerts_list(mlm_client_t* user_interface, const char
         zmsg_addstr(send, "LIST");
     }
     zmsg_addstr(send, state);
-    if (mlm_client_sendto(user_interface, "fty-alert-list", RFC_ALERTS_LIST_SUBJECT, nullptr, 5000, &send) != 0) {
-        zmsg_destroy(&send);
+
+    int r = mlm_client_sendto(user_interface, "fty-alert-list", RFC_ALERTS_LIST_SUBJECT, nullptr, 5000, &send);
+    zmsg_destroy(&send);
+    CHECK(r == 0);
+    if (r != 0) {
         return nullptr;
     }
+
     zmsg_t* reply = mlm_client_recv(user_interface);
     CHECK(streq(mlm_client_command(user_interface), "MAILBOX DELIVER"));
     CHECK(streq(mlm_client_sender(user_interface), "fty-alert-list"));
@@ -101,7 +154,8 @@ static void test_request_alerts_acknowledge(mlm_client_t* ui, mlm_client_t* cons
         zstr_free(&element_reply);
         zstr_free(&state_reply);
         CHECK(found == 1);
-    } else {
+    }
+    else {
         CHECK(streq(ok, "ERROR"));
         char* reason = zmsg_popstr(reply);
         CHECK((streq(reason, "BAD_STATE") || streq(reason, "NOT_FOUND")));
@@ -246,6 +300,7 @@ static void test_alert_publish(mlm_client_t* producer, mlm_client_t* consumer, z
     REQUIRE(copy);
     zmsg_t* zmessage = fty_proto_encode(&copy);
     REQUIRE(zmessage);
+
     int rv = mlm_client_send(producer, "Nobody here cares about this.", &zmessage);
     REQUIRE(rv == 0);
     zclock_sleep(100);
@@ -254,6 +309,7 @@ static void test_alert_publish(mlm_client_t* producer, mlm_client_t* consumer, z
     fty_proto_t* received = fty_proto_decode(&zmessage);
 
     CHECK(alert_comparator(*message, received) == 0);
+
     fty_proto_destroy(&received);
     fty_proto_destroy(message);
 }
@@ -262,38 +318,45 @@ TEST_CASE("alert list server test")
 {
     #define SELFTEST_RO "tests/selftest-ro"
 
-    static const char* endpoint = "inproc://fty-lm-server-test";
+    const char* ENDPOINT = "inproc://fty-al-server-test";
 
     // Malamute
     zactor_t* server = zactor_new(mlm_server, const_cast<char*>("Malamute"));
-    zstr_sendx(server, "BIND", endpoint, nullptr);
+    zstr_sendx(server, "BIND", ENDPOINT, nullptr);
 
     // User Interface
     mlm_client_t* ui = mlm_client_new();
-    int           rv = mlm_client_connect(ui, endpoint, 1000, "UI");
+    REQUIRE(ui);
+    int rv = mlm_client_connect(ui, ENDPOINT, 1000, "UI");
     REQUIRE(rv == 0);
 
     // Alert Producer
     mlm_client_t* producer = mlm_client_new();
-    rv                     = mlm_client_connect(producer, endpoint, 1000, "PRODUCER");
+    REQUIRE(producer);
+    rv = mlm_client_connect(producer, ENDPOINT, 1000, "PRODUCER");
     REQUIRE(rv == 0);
     rv = mlm_client_set_producer(producer, "_ALERTS_SYS");
     REQUIRE(rv == 0);
 
     // Arbitrary Alert Consumer
     mlm_client_t* consumer = mlm_client_new();
-    rv                     = mlm_client_connect(consumer, endpoint, 1000, "CONSUMER");
+    REQUIRE(consumer);
+    rv = mlm_client_connect(consumer, ENDPOINT, 1000, "CONSUMER");
     REQUIRE(rv == 0);
     rv = mlm_client_set_consumer(consumer, "ALERTS", ".*");
     REQUIRE(rv == 0);
 
     // Alert Lists (assume empty)
     init_alert_private(SELFTEST_RO, "_faked_empty_alerts_", false);
-    zactor_t* fty_al_server_stream  = zactor_new(fty_alert_list_server_stream, const_cast<char*>(endpoint));
-    zactor_t* fty_al_server_mailbox = zactor_new(fty_alert_list_server_mailbox, const_cast<char*>(endpoint));
+
+    zactor_t* fty_al_server_stream  = zactor_new(fty_alert_list_server_stream, const_cast<char*>(ENDPOINT));
+    zactor_t* fty_al_server_mailbox = zactor_new(fty_alert_list_server_mailbox, const_cast<char*>(ENDPOINT));
+    REQUIRE(fty_al_server_stream);
+    REQUIRE(fty_al_server_mailbox);
 
     // maintain a list of active alerts (that serves as "expected results")
     zlistx_t* testAlerts = zlistx_new();
+    REQUIRE(testAlerts);
     zlistx_set_destructor(testAlerts, reinterpret_cast<czmq_destructor*>(fty_proto_destroy));
     zlistx_set_duplicator(testAlerts, reinterpret_cast<czmq_duplicator*>(fty_proto_dup));
     zlistx_set_comparator(testAlerts, reinterpret_cast<czmq_comparator*>(alert_id_comparator));
@@ -840,38 +903,28 @@ TEST_CASE("alert list server test")
     zlistx_destroy(&testAlerts);
 
     save_alerts();
+
     zactor_destroy(&fty_al_server_mailbox);
     zactor_destroy(&fty_al_server_stream);
     mlm_client_destroy(&consumer);
     mlm_client_destroy(&producer);
     mlm_client_destroy(&ui);
     zactor_destroy(&server);
+
     destroy_alert();
 
-    if (nullptr != actions1)
-        zlist_destroy(&actions1);
-    if (nullptr != actions2)
-        zlist_destroy(&actions2);
-    if (nullptr != actions3)
-        zlist_destroy(&actions3);
-    if (nullptr != actions4)
-        zlist_destroy(&actions4);
-    if (nullptr != actions5)
-        zlist_destroy(&actions5);
-    if (nullptr != actions6)
-        zlist_destroy(&actions6);
-    if (nullptr != actions7)
-        zlist_destroy(&actions7);
-    if (nullptr != actions8)
-        zlist_destroy(&actions8);
-    if (nullptr != actions9)
-        zlist_destroy(&actions9);
-    if (nullptr != actions10)
-        zlist_destroy(&actions10);
-    if (nullptr != actions11)
-        zlist_destroy(&actions11);
-    if (nullptr != actions12)
-        zlist_destroy(&actions12);
+    zlist_destroy(&actions1);
+    zlist_destroy(&actions2);
+    zlist_destroy(&actions3);
+    zlist_destroy(&actions4);
+    zlist_destroy(&actions5);
+    zlist_destroy(&actions6);
+    zlist_destroy(&actions7);
+    zlist_destroy(&actions8);
+    zlist_destroy(&actions9);
+    zlist_destroy(&actions10);
+    zlist_destroy(&actions11);
+    zlist_destroy(&actions12);
 
     printf("OK\n");
 }

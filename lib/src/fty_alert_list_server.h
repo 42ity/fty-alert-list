@@ -24,8 +24,12 @@
 
 ///  zactor ready fnction
 void fty_alert_list_server_stream(zsock_t* pipe, void* args);
-void init_alert(bool verb);
+void fty_alert_list_server_mailbox(zsock_t* pipe, void* args);
+
+// returns 0 if OK, else <0
+int init_alert(bool verbose);
 void destroy_alert();
 void save_alerts();
-void fty_alert_list_server_mailbox(zsock_t* pipe, void* args);
+
+//UT
 void init_alert_private(const char* path, const char* filename, bool verb);
