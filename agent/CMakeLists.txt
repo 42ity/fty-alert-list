@@ -10,7 +10,6 @@ etn_target(exe ${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib/src
     USES_PRIVATE
         ${PROJECT_NAME}-lib
-        libzmq
 )
 
 ########################################################################################################################

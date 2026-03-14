@@ -10,9 +10,9 @@ etn_target(static ${PROJECT_NAME}-lib
         src/fty_alert_list_server.cc
         src/fty_alert_list_server.h
     USES_PRIVATE
+        libzmq #zmq_z85 codec
         czmq
         mlm
-        libzmq
         fty_proto
         fty_common
         fty_common_logging
